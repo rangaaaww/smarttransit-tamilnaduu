@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SmartTransit Tamil Nadu | Next-Gen Transit & Fare Intelligence</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+  
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-white dark:bg-[#0B0F19] text-slate-900 dark:text-slate-100 min-h-screen flex flex-col antialiased selection:bg-blue-500/15 selection:text-blue-700 relative overflow-x-hidden transition-colors duration-300">
+
+  <!-- 1. FIRST-TIME USER ONBOARDING & LOGIN MODAL (SAVES TO LOCALSTORAGE) -->
+  <div id="loginModal" class="fixed inset-0 z-[3000] bg-slate-950/70 backdrop-blur-md hidden items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5">
+      <div class="flex items-center space-x-3.5">
+        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 via-rose-500 to-amber-400 p-[2px] shadow-lg">
+          <div class="w-full h-full bg-white dark:bg-slate-900 rounded-[14px] flex items-center justify-center">
+            <i class="fa-solid fa-location-arrow text-blue-600 text-xl"></i>
+          </div>
+        </div>
+        <div>
+          <span class="text-[10px] font-mono uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 font-bold border border-blue-200 dark:border-blue-800">First-Time Setup</span>
+          <h2 class="text-lg font-extrabold text-slate-950 dark:text-white mt-0.5">Welcome to SmartTransit TN</h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Personalize your commuter pass & trip history</p>
+        </div>
+      </div>
+
+      <form id="loginForm" class="space-y-3.5 text-xs">
+        <div>
+          <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Full Name *</label>
+          <input type="text" id="loginName" required placeholder="e.g., Sadhan H M" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-blue-600">
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Phone / ID Number *</label>
+            <input type="text" id="loginPhone" required placeholder="e.g., 98401 23456" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-blue-600">
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Default City Hub</label>
+            <select id="loginCity" class="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-blue-600">
+              <option value="Chennai">Chennai (MTC)</option>
+              <option value="Coimbatore">Coimbatore (TNSTC)</option>
+              <option value="Madurai">Madurai (TNSTC)</option>
+              <option value="Trichy">Tiruchirappalli</option>
+              <option value="Salem">Salem</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Default Commuter Pass Category</label>
+          <select id="loginPassType" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-blue-600">
+            <option value="STUDENT">College Student Pass (50% Official Concession)</option>
+            <option value="GENERAL">Standard Adult Commuter (G.O. Ms No. 42)</option>
+            <option value="WOMEN_FREE">Magalir Vidiyal Payanam (₹0 Women Free Ordinary)</option>
+          </select>
+        </div>
+
+        <button type="submit" class="w-full py-3 bg-slate-950 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-500 text-white font-extrabold rounded-full shadow-lg transition flex items-center justify-center space-x-2 mt-2">
+          <span>Continue to Live Transit App</span>
+          <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </form>
+      <p class="text-[11px] text-center text-slate-400">Your profile & search history are stored locally on your device for instant access.</p>
+    </div>
+  </div>
+
+  <!-- 2. SLIDE-OUT HAMBURGER NAVIGATION DRAWER (CHALO STYLE MENU) -->
+  <div id="drawerBackdrop" class="fixed inset-0 bg-slate-950/50 backdrop-blur-xs z-[2500] hidden transition-opacity"></div>
+  
+  <aside id="sideDrawer" class="fixed top-0 left-0 bottom-0 w-[300px] max-w-[85vw] bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 z-[2600] -translate-x-full transition-transform duration-300 flex flex-col justify-between shadow-2xl">
+    <div>
+      <div class="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-800/50">
+        <div class="flex items-center space-x-3.5">
+          <div class="w-12 h-12 rounded-full bg-slate-950 dark:bg-blue-600 text-white flex items-center justify-center text-lg font-extrabold shadow-md" id="drawerAvatar">
+            S
+          </div>
+          <div>
+            <h3 class="font-extrabold text-sm text-slate-950 dark:text-white leading-tight" id="drawerUserName">Sadhan H M</h3>
+            <button id="editProfileBtn" class="text-[11px] text-blue-600 dark:text-blue-400 font-semibold hover:underline flex items-center mt-0.5">
+              <span>View / Edit Profile</span>
+              <i class="fa-solid fa-chevron-right text-[9px] ml-1"></i>
+            </button>
+          </div>
+        </div>
+        <button id="closeDrawerBtn" class="w-8 h-8 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-slate-500">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+
+      <nav class="p-3 space-y-1 text-xs font-semibold text-slate-700 dark:text-slate-200 overflow-y-auto max-h-[calc(100vh-180px)]">
+        <button data-modal="modalTickets" class="drawer-item w-full flex items-center justify-between px-3.5 py-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+          <div class="flex items-center space-x-3.5">
+            <i class="fa-solid fa-ticket text-blue-600 text-sm w-5 text-center"></i>
+            <span class="border border-amber-500/80 bg-amber-500/10 text-slate-900 dark:text-white px-2.5 py-0.5 rounded-md font-bold">Your tickets / passes</span>
+          </div>
+          <i class="fa-solid fa-chevron-right text-[10px] text-slate-400"></i>
+        </button>
+
+        <button data-modal="modalHistory" class="drawer-item w-full flex items-center justify-between px-3.5 py-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+          <div class="flex items-center space-x-3.5">
+            <i class="fa-solid fa-clock-rotate-left text-indigo-500 text-sm w-5 text-center"></i>
+            <span>Trip Search History</span>
+          </div>
+          <span id="historyCountBadge" class="text-[10px] font-mono bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded-full">0</span>
+        </button>
+
+        <button data-modal="modalStops" class="drawer-item w-full flex items-center justify-between px-3.5 py-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+          <div class="flex items-center space-x-3.5">
+            <i class="fa-solid fa-location-dot text-emerald-600 text-sm w-5 text-center"></i>
+            <span>Stops & Stations Directory</span>
+          </div>
+          <span class="text-[10px] font-mono text-slate-400">31 Hubs</span>
+        </button>
+
+        <button data-modal="modalFavorites" class="drawer-item w-full flex items-center justify-between px-3.5 py-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+          <div class="flex items-center space-x-3.5">
+            <i class="fa-solid fa-star text-amber-500 text-sm w-5 text-center"></i>
+            <span>Favorites & Saved Routes</span>
+          </div>
+          <i class="fa-solid fa-chevron-right text-[10px] text-slate-400"></i>
+        </button>
+
+        <div class="my-2 border-t border-slate-200 dark:border-slate-800"></div>
+
+        <button data-modal="modalAlerts" class="drawer-item w-full flex items-center justify-between px-3.5 py-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+          <div class="flex items-center space-x-3.5">
+            <i class="fa-solid fa-bell text-rose-500 text-sm w-5 text-center"></i>
+            <span>Alerts & Notifications</span>
+          </div>
+          <span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
+        </button>
+
+        <button data-modal="modalSupport" class="drawer-item w-full flex items-center justify-between px-3.5 py-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+          <div class="flex items-center space-x-3.5">
+            <i class="fa-solid fa-circle-question text-blue-500 text-sm w-5 text-center"></i>
+            <span>24x7 MTC / TNSTC Support</span>
+          </div>
+          <i class="fa-solid fa-chevron-right text-[10px] text-slate-400"></i>
+        </button>
+
+        <button id="drawerChangeCityBtn" class="w-full flex items-center justify-between px-3.5 py-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+          <div class="flex items-center space-x-3.5">
+            <i class="fa-solid fa-city text-purple-500 text-sm w-5 text-center"></i>
+            <span>Change City / State Zoom</span>
+          </div>
+          <span class="text-[10px] font-mono text-blue-600 dark:text-blue-400" id="drawerCityLabel">Chennai</span>
+        </button>
+
+        <button id="drawerLangBtn" class="w-full flex items-center justify-between px-3.5 py-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+          <div class="flex items-center space-x-3.5">
+            <i class="fa-solid fa-globe text-teal-500 text-sm w-5 text-center"></i>
+            <span>Change Language</span>
+          </div>
+          <span class="text-[10px] font-mono bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded" id="langBadge">EN / தமிழ்</span>
+        </button>
+
+        <button data-modal="modalSOS" class="drawer-item w-full flex items-center justify-between px-3.5 py-3 rounded-xl bg-rose-50/80 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-700 dark:text-rose-300 transition mt-1">
+          <div class="flex items-center space-x-3.5">
+            <span class="px-1.5 py-0.5 rounded bg-rose-600 text-white font-mono text-[9px] font-extrabold">SOS</span>
+            <span class="font-bold">SOS Emergency Helplines</span>
+          </div>
+          <i class="fa-solid fa-phone-volume text-rose-600 animate-bounce"></i>
+        </button>
+
+        <div class="my-2 border-t border-slate-200 dark:border-slate-800"></div>
+
+        <button id="shareAppBtn" class="w-full flex items-center space-x-3.5 px-3.5 py-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+          <i class="fa-solid fa-share-nodes text-slate-500 text-sm w-5 text-center"></i>
+          <span>Share With Friends</span>
+        </button>
+      </nav>
+    </div>
+
+    <div class="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 text-[11px] text-slate-400 flex items-center justify-between">
+      <span>Easwari Engineering College</span>
+      <span class="font-mono">v8.4 Pro</span>
+    </div>
+  </aside>
+
+  <!-- 3. FEATURE MODALS OVERLAY -->
+  <div id="featureModalOverlay" class="fixed inset-0 z-[2800] bg-slate-950/60 backdrop-blur-xs hidden items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+        <h3 id="featureModalTitle" class="font-extrabold text-base text-slate-950 dark:text-white">Modal Title</h3>
+        <button id="closeFeatureModalBtn" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div id="featureModalBody" class="text-xs space-y-3"></div>
+    </div>
+  </div>
+
+  <!-- GOOGLE ANTIGRAVITY SPECTRUM AMBIENT BACKDROP -->
+  <div class="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
+    <div class="absolute -top-24 left-1/4 w-[650px] h-[350px] bg-gradient-to-tr from-blue-400/15 via-indigo-300/10 to-transparent blur-[110px] rounded-full"></div>
+    <div class="absolute top-12 right-1/4 w-[600px] h-[350px] bg-gradient-to-bl from-amber-300/15 via-rose-300/15 to-transparent blur-[110px] rounded-full"></div>
+    <div class="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] dark:bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:28px_28px] opacity-40"></div>
+  </div>
+
+  <!-- TOP NAVIGATION HEADER -->
+  <header class="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800 sticky top-0 z-[1000] px-4 sm:px-6 py-3">
+    <div class="max-w-[1720px] mx-auto flex items-center justify-between gap-2">
+      
+      <div class="flex items-center space-x-3">
+        <button id="openDrawerBtn" class="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-slate-900 dark:text-white transition shadow-xs" title="Open App Menu">
+          <i class="fa-solid fa-bars text-base"></i>
+        </button>
+
+        <div class="flex items-center space-x-2.5">
+          <div class="w-9 h-9 rounded-2xl bg-gradient-to-tr from-blue-600 via-rose-500 to-amber-400 p-[2px] shadow-sm hidden sm:flex">
+            <div class="w-full h-full bg-white dark:bg-slate-900 rounded-[14px] flex items-center justify-center">
+              <i class="fa-solid fa-location-arrow text-slate-900 dark:text-white text-sm"></i>
+            </div>
+          </div>
+          <div>
+            <div class="flex items-center space-x-2">
+              <span class="font-extrabold text-base sm:text-lg tracking-tight text-slate-950 dark:text-white" id="brandTitleText">SmartTransit <span class="font-semibold text-blue-600">TN</span></span>
+              <span class="text-[10px] font-mono font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">Live GPS</span>
+            </div>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400 hidden md:block">Smooth Real-Time Bus Tracking, Official TN Govt Fares & Multi-App Comparator</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-2 sm:space-x-2.5">
+        <button id="headerSosBtn" class="px-3 py-2 rounded-full bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs flex items-center space-x-1.5 shadow-md shadow-rose-600/20 transition" title="Emergency SOS">
+          <i class="fa-solid fa-shield-heart"></i>
+          <span>SOS</span>
+        </button>
+
+        <button id="headerAlertsBtn" class="relative w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-200 transition" title="Transit Alerts">
+          <i class="fa-solid fa-bell text-sm"></i>
+          <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500"></span>
+        </button>
+
+        <button id="themeToggleBtn" class="px-3 py-2 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold text-xs flex items-center space-x-1.5 border border-slate-200 dark:border-slate-700 transition" title="Switch Day / Night Theme">
+          <i id="themeIcon" class="fa-solid fa-moon text-indigo-600 dark:text-amber-300"></i>
+          <span id="themeText" class="hidden sm:inline">Night Mode</span>
+        </button>
+
+        <button id="headerProfileBtn" class="hidden lg:flex items-center space-x-2 pl-2 pr-3 py-1.5 rounded-full bg-slate-950 dark:bg-blue-600 text-white text-xs font-semibold shadow-xs">
+          <span class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center font-bold text-[10px]" id="headerUserInitial">S</span>
+          <span id="headerUserName">Sadhan</span>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- MAIN WORKSPACE GRID -->
+  <main class="flex-1 p-3 sm:p-6 max-w-[1720px] w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-5 pb-24 lg:pb-8">
+
+    <!-- LEFT COLUMN: INTERACTIVE MAP & SMOOTH LIVE BUS TRACKER (7 Cols) -->
+    <section id="sectionMap" class="lg:col-span-7 flex flex-col space-y-5">
+
+      <div class="relative rounded-3xl p-[1.5px] bg-gradient-to-tr from-blue-500/30 via-purple-500/20 to-amber-500/30 shadow-[0_20px_50px_rgba(15,23,42,0.06)]">
+        <div class="bg-white dark:bg-slate-900 rounded-[23px] p-4 sm:p-5 flex flex-col">
+          
+          <div class="flex flex-wrap items-center justify-between gap-2.5 mb-3.5">
+            <div>
+              <div class="flex items-center space-x-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-blue-600 animate-ping"></span>
+                <h2 class="font-bold text-sm sm:text-base text-slate-950 dark:text-white tracking-tight">Live GPS Bus Map (Chennai & Tamil Nadu)</h2>
+              </div>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Click any stop or street on the map to drop Pickup & Destination pins</p>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-1.5">
+              <div class="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-full border border-slate-200 dark:border-slate-700 text-[11px] font-semibold">
+                <button id="modePickOrigin" class="px-2.5 py-1 rounded-full text-slate-600 dark:text-slate-300 hover:text-slate-950 transition">
+                  <i class="fa-solid fa-location-dot text-blue-600 mr-1"></i>Origin
+                </button>
+                <button id="modePickDest" class="px-2.5 py-1 rounded-full bg-slate-950 dark:bg-blue-600 text-white shadow-xs transition">
+                  <i class="fa-solid fa-flag-checkered text-rose-400 mr-1"></i>Drop
+                </button>
+              </div>
+
+              <div class="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-full border border-slate-200 dark:border-slate-700 text-[11px] font-semibold">
+                <button id="btnStreetMap" class="px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs transition">Streets</button>
+                <button id="btnSatMap" class="px-2.5 py-1 rounded-full text-slate-600 dark:text-slate-400 hover:text-slate-900 transition">Satellite</button>
+              </div>
+
+              <button id="btnResetView" class="px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 text-[11px] font-semibold border border-slate-200 dark:border-slate-700 transition">
+                <i class="fa-solid fa-expand"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="relative w-full h-[360px] sm:h-[450px] rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-inner">
+            <div id="transitMap" class="w-full h-full z-0"></div>
+
+            <!-- Live Smooth Telemetry Overlay Pill -->
+            <div class="absolute top-3 right-3 z-[400] bg-slate-950/90 text-white backdrop-blur-md px-3.5 py-2 rounded-2xl border border-white/15 shadow-lg text-[11px] font-mono flex items-center space-x-3">
+              <div class="flex items-center space-x-1.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span id="liveSpeedReadout" class="font-bold text-amber-300">34 km/h</span>
+              </div>
+              <span class="text-slate-500">|</span>
+              <span id="liveProgressPct" class="text-slate-200">Journey: 25%</span>
+            </div>
+
+            <!-- Floating Map Legend -->
+            <div class="absolute bottom-2.5 left-2.5 right-2.5 z-[400] bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/90 dark:border-slate-700 text-[11px] px-3.5 py-2 rounded-2xl flex flex-wrap items-center justify-between gap-2 text-slate-700 dark:text-slate-300 shadow-lg">
+              <div class="flex flex-wrap items-center gap-3 font-medium">
+                <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block mr-1"></span> Origin</span>
+                <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-rose-600 inline-block mr-1"></span> Drop</span>
+                <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-slate-400 inline-block mr-1"></span> Passed</span>
+                <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block mr-1"></span> Upcoming</span>
+                <span class="flex items-center"><span class="px-1.5 py-0.2 rounded bg-slate-950 text-white font-mono text-[9px] font-bold mr-1">BUS</span> Gliding GPS</span>
+              </div>
+              <span class="text-[10px] font-mono text-slate-500 hidden sm:inline" id="customCoordLabel">60 FPS Smooth GPS</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- LIVE BUS JOURNEY TIMELINE -->
+      <div id="sectionLiveTracker" class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-4 sm:p-5 shadow-[0_12px_35px_rgba(15,23,42,0.04)] flex flex-col space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center space-x-2.5">
+            <span class="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-sm">
+              <i class="fa-solid fa-bus"></i>
+            </span>
+            <div>
+              <h2 class="font-bold text-sm text-slate-950 dark:text-white">Smooth Live Bus Tracker: Passed & Upcoming Stops</h2>
+              <p class="text-xs text-slate-500 dark:text-slate-400" id="liveBusStatusSubtitle">Continuous real-time GPS interpolation along route corridor</p>
+            </div>
+          </div>
+
+          <div class="flex items-center space-x-2">
+            <button id="pauseResumeBusBtn" class="px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 text-xs font-semibold border border-slate-200 dark:border-slate-700 transition">
+              <i class="fa-solid fa-pause mr-1" id="pauseResumeIcon"></i><span id="pauseResumeText">Pause</span>
+            </button>
+            <button id="stepBusBtn" class="px-3.5 py-1 rounded-full bg-slate-950 dark:bg-blue-600 hover:bg-slate-800 text-white text-xs font-semibold transition">
+              <i class="fa-solid fa-forward-step mr-1"></i>Next Stop
+            </button>
+          </div>
+        </div>
+
+        <div class="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-200 dark:border-slate-700">
+          <div id="smoothRouteProgressBar" class="bg-gradient-to-r from-blue-600 via-indigo-500 to-emerald-500 h-full rounded-full transition-all duration-150" style="width: 25%"></div>
+        </div>
+
+        <div id="liveJourneyTimeline" class="grid grid-cols-1 sm:grid-cols-5 gap-2.5 pt-1">
+        </div>
+      </div>
+
+      <!-- LIVE MTC / TNSTC FLEET TABLE -->
+      <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-4 sm:p-5 shadow-[0_12px_35px_rgba(15,23,42,0.04)] flex-1 flex flex-col">
+        <div class="flex items-center justify-between mb-3.5">
+          <div class="flex items-center space-x-2">
+            <span class="w-2 h-2 rounded-full bg-blue-600"></span>
+            <h2 class="font-bold text-sm text-slate-950 dark:text-white">Active Tamil Nadu State Fleet Telemetry</h2>
+          </div>
+          <span class="text-[10px] font-mono text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-700">
+            G.O. (Ms) No. 42 Compliant
+          </span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead>
+              <tr class="text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 uppercase font-mono text-[10px] tracking-wider bg-slate-50/80 dark:bg-slate-800/50">
+                <th class="py-2.5 px-3 rounded-tl-lg">Service No</th>
+                <th class="py-2.5 px-3">Coach Category</th>
+                <th class="py-2.5 px-3">Route Corridor</th>
+                <th class="py-2.5 px-3">Passenger Load</th>
+                <th class="py-2.5 px-3">Speed</th>
+                <th class="py-2.5 px-3 text-right rounded-tr-lg">Live Status</th>
+              </tr>
+            </thead>
+            <tbody id="fleetTableBody" class="divide-y divide-slate-100 dark:divide-slate-800 font-mono text-slate-700 dark:text-slate-300">
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- RIGHT COLUMN: ROUTE SEARCH, OFFICIAL FARE BREAKDOWN & MULTI-APP COMPARATOR (5 Cols) -->
+    <section id="sectionFares" class="lg:col-span-5 flex flex-col space-y-5">
+
+      <!-- Search Card -->
+      <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-5 sm:p-6 shadow-[0_16px_40px_rgba(15,23,42,0.05)] flex flex-col space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="font-extrabold text-base text-slate-950 dark:text-white tracking-tight">Pin-to-Pin Route & Fare Finder</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Select stops below or tap anywhere on the map</p>
+          </div>
+          <button id="saveFavoriteRouteBtn" class="px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-950/50 hover:bg-amber-100 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-xs font-bold flex items-center space-x-1 transition" title="Save Route to Favorites">
+            <i class="fa-regular fa-star" id="favStarIcon"></i>
+            <span>Save</span>
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
+            <label class="flex items-center text-slate-500 dark:text-slate-400 mb-1.5 font-mono text-[10px] uppercase tracking-wider font-semibold">
+              <span class="w-2 h-2 rounded-full bg-blue-600 mr-1.5"></span> Origin (Pickup Pin)
+            </label>
+            <select id="originSelect" class="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-blue-600 text-xs shadow-xs">
+            </select>
+          </div>
+
+          <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
+            <label class="flex items-center text-slate-500 dark:text-slate-400 mb-1.5 font-mono text-[10px] uppercase tracking-wider font-semibold">
+              <span class="w-2 h-2 rounded-full bg-rose-600 mr-1.5"></span> Destination (Drop Pin)
+            </label>
+            <select id="destSelect" class="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-rose-600 text-xs shadow-xs">
+            </select>
+          </div>
+
+          <div class="sm:col-span-2 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
+            <label class="block text-slate-500 dark:text-slate-400 mb-1.5 font-mono text-[10px] uppercase tracking-wider font-semibold">
+              Passenger Concession / Ticket Category
+            </label>
+            <select id="passSelect" class="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-semibold focus:outline-none focus:border-blue-600 text-xs shadow-xs">
+              <option value="GENERAL">Standard Adult Commuter (Official MTC / TNSTC G.O. Slab)</option>
+              <option value="STUDENT">College Student (50% Concession Pass)</option>
+              <option value="WOMEN_FREE">Magalir Vidiyal Payanam (₹0 Free Ordinary / Pink Bus for Women)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex items-center space-x-2">
+          <button id="searchBtn" class="flex-1 py-3 px-5 bg-slate-950 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-500 text-white font-bold text-xs tracking-wide rounded-full shadow-lg flex items-center justify-center space-x-2 transition-all">
+            <i class="fa-solid fa-compass"></i>
+            <span>Search Route & Compare Fares</span>
+          </button>
+          <button id="swapRouteBtn" class="px-4 py-3 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-bold text-xs border border-slate-200 dark:border-slate-700 transition" title="Swap Origin & Destination">
+            <i class="fa-solid fa-right-left"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- BUS NUMBERS & STOPS GUIDE CARD -->
+      <div id="routeGuideContainer" class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-5 sm:p-6 shadow-[0_12px_35px_rgba(15,23,42,0.04)] flex flex-col space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="font-bold text-sm text-slate-950 dark:text-white">Direct MTC / TNSTC Bus Numbers</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Buses arriving at your pickup stop for this route</p>
+          </div>
+          <span class="text-[11px] font-mono font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 px-2.5 py-0.5 rounded-full" id="busFrequencyText">
+            Every 4-6 mins
+          </span>
+        </div>
+
+        <div id="busNumbersContainer" class="flex flex-wrap gap-2">
+        </div>
+
+        <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 flex items-start space-x-3 text-xs text-slate-700 dark:text-slate-300">
+          <i class="fa-solid fa-circle-info text-blue-600 mt-0.5 text-sm"></i>
+          <div id="boardingTipText" class="leading-relaxed"></div>
+        </div>
+      </div>
+
+      <!-- OFFICIAL FARE & MULTI-PLATFORM RECOMMENDATION ENGINE -->
+      <div id="comparisonContainer" class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-5 sm:p-6 shadow-[0_12px_35px_rgba(15,23,42,0.04)] flex flex-col space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="font-bold text-sm text-slate-950 dark:text-white">Official Bus Fare vs Ride-Hailing</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Official TN Govt stage tables & live market rates</p>
+          </div>
+          <span class="text-xs font-mono font-bold text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1 rounded-full" id="distanceBadge">
+            12.4 km
+          </span>
+        </div>
+
+        <div class="space-y-2.5">
+          
+          <div class="p-3.5 rounded-2xl border-2 border-blue-600 bg-blue-50/30 dark:bg-blue-950/30 flex items-center justify-between relative overflow-hidden">
+            <span class="absolute top-0 right-0 bg-blue-600 text-white text-[9px] font-extrabold uppercase px-2.5 py-0.5 rounded-bl-xl">Official Govt Fare</span>
+            <div class="flex items-center space-x-3.5">
+              <div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center text-base shadow-xs">
+                <i class="fa-solid fa-bus"></i>
+              </div>
+              <div>
+                <div class="flex items-center space-x-2">
+                  <span class="font-bold text-xs text-slate-950 dark:text-white">MTC / TNSTC State Bus</span>
+                  <span class="text-[10px] text-blue-700 dark:text-blue-300 font-mono font-semibold bg-blue-100 dark:bg-blue-900 px-2 py-0.5 rounded-md" id="busSubtext">Ordinary / Deluxe</span>
+                </div>
+                <p class="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5 font-medium" id="busEta">Drop in ~24 mins • Stage-based G.O. Tariff</p>
+              </div>
+            </div>
+            <div class="text-right">
+              <span class="text-base font-extrabold font-mono text-blue-700 dark:text-blue-400" id="busPrice">₹ 10</span>
+              <p class="text-[10px] text-slate-500 dark:text-slate-400 font-mono" id="busSlabDetail">Ord: ₹10 | Dlx: ₹19</p>
+            </div>
+          </div>
+
+          <div class="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/50 hover:bg-slate-50/80 transition flex items-center justify-between relative overflow-hidden">
+            <span class="absolute top-0 right-0 bg-amber-400 text-slate-950 text-[9px] font-extrabold uppercase px-2.5 py-0.5 rounded-bl-xl" id="rapidoBadge">Fastest Drop</span>
+            <div class="flex items-center space-x-3.5">
+              <div class="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 flex items-center justify-center text-base">
+                <i class="fa-solid fa-motorcycle"></i>
+              </div>
+              <div>
+                <div class="flex items-center space-x-1.5">
+                  <span class="font-bold text-xs text-slate-900 dark:text-white">Rapido Bike Taxi</span>
+                  <span class="text-[10px] text-amber-700 dark:text-amber-400 font-mono font-semibold">1 Seat</span>
+                </div>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5" id="rapidoEta">Drop in ~16 mins • Beats traffic</p>
+              </div>
+            </div>
+            <div class="text-right">
+              <span class="text-sm font-bold font-mono text-slate-900 dark:text-white" id="rapidoPrice">₹ 95</span>
+              <p class="text-[10px] text-slate-400">₹25 base + ₹11/km</p>
+            </div>
+          </div>
+
+          <div class="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/50 hover:bg-slate-50/80 transition flex items-center justify-between">
+            <div class="flex items-center space-x-3.5">
+              <div class="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 flex items-center justify-center text-base">
+                <i class="fa-solid fa-taxi"></i>
+              </div>
+              <div>
+                <div class="flex items-center space-x-1.5">
+                  <span class="font-bold text-xs text-slate-900 dark:text-white">Auto Rickshaw (ONDC / App)</span>
+                  <span class="text-[10px] text-purple-700 dark:text-purple-400 font-mono font-semibold">3 Seats</span>
+                </div>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5" id="autoEta">Drop in ~21 mins • Door-to-door</p>
+              </div>
+            </div>
+            <div class="text-right">
+              <span class="text-sm font-bold font-mono text-slate-900 dark:text-white" id="autoPrice">₹ 165</span>
+              <p class="text-[10px] text-slate-400">₹50 min + ₹15/km</p>
+            </div>
+          </div>
+
+          <div class="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/50 hover:bg-slate-50/80 transition flex items-center justify-between">
+            <div class="flex items-center space-x-3.5">
+              <div class="w-10 h-10 rounded-xl bg-slate-900 dark:bg-slate-700 text-white flex items-center justify-center text-base">
+                <i class="fa-solid fa-car"></i>
+              </div>
+              <div>
+                <div class="flex items-center space-x-1.5">
+                  <span class="font-bold text-xs text-slate-900 dark:text-white">Uber Go / AC Cab</span>
+                  <span class="text-[10px] text-slate-500 dark:text-slate-400 font-mono font-semibold">4 Seats AC</span>
+                </div>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5" id="uberEta">Drop in ~22 mins • Weather-proof</p>
+              </div>
+            </div>
+            <div class="text-right">
+              <span class="text-sm font-bold font-mono text-slate-900 dark:text-white" id="uberPrice">₹ 245</span>
+              <p class="text-[10px] text-slate-400">₹75 base + ₹18/km</p>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="p-4 rounded-2xl bg-slate-950 dark:bg-slate-800 text-white text-xs space-y-1 shadow-md">
+          <div class="text-amber-300 font-bold flex items-center text-[11px] font-mono uppercase tracking-wider">
+            <i class="fa-solid fa-wand-magic-sparkles mr-2"></i> Smart Commuter Verdict
+          </div>
+          <p class="text-xs text-slate-200 leading-relaxed" id="recommendationText">
+          </p>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- MOBILE PHONE BOTTOM APP NAVIGATION BAR -->
+  <nav class="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 z-[1500] px-4 py-2 flex items-center justify-around text-[11px] font-bold text-slate-600 dark:text-slate-400 shadow-2xl">
+    <a href="#sectionMap" class="flex flex-col items-center space-y-1 text-blue-600 dark:text-blue-400">
+      <i class="fa-solid fa-map-location-dot text-base"></i>
+      <span>Live Map</span>
+    </a>
+    <a href="#sectionLiveTracker" class="flex flex-col items-center space-y-1 hover:text-blue-600">
+      <i class="fa-solid fa-bus text-base"></i>
+      <span>Track Bus</span>
+    </a>
+    <a href="#sectionFares" class="flex flex-col items-center space-y-1 hover:text-blue-600">
+      <i class="fa-solid fa-indian-rupee-sign text-base"></i>
+      <span>Compare Fare</span>
+    </a>
+    <button id="mobileSosNavBtn" class="flex flex-col items-center space-y-1 text-rose-600">
+      <i class="fa-solid fa-shield-heart text-base"></i>
+      <span>SOS Help</span>
+    </button>
+    <button id="mobileMenuNavBtn" class="flex flex-col items-center space-y-1 hover:text-blue-600">
+      <i class="fa-solid fa-bars text-base"></i>
+      <span>Menu</span>
+    </button>
+  </nav>
+
+  <!-- DESKTOP FOOTER -->
+  <footer class="hidden lg:block border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-6 py-3 mt-4">
+    <div class="max-w-[1720px] mx-auto flex items-center justify-between text-xs text-slate-500 font-mono">
+      <div class="flex items-center space-x-2">
+        <span class="w-2 h-2 rounded-full bg-blue-600"></span>
+        <span id="terminalLog" class="text-slate-700 dark:text-slate-300 font-medium">[SYSTEM READY] Smooth 60 FPS GPS Bus Tracking Active.</span>
+      </div>
+      <div>SmartTransit Tamil Nadu • Easwari Engineering College (CSE)</div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
