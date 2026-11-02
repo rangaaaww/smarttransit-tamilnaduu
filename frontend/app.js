@@ -1252,3 +1252,42 @@ function logTerminal(msg) {
   const term = document.getElementById("terminalLog");
   if (term) term.textContent = msg;
 }
+// ============================================================================
+// TRANSIT APP REDIRECTION (Rapido, Uber, Namma Yatri, MTC Bus)
+// ============================================================================
+function openTransitProvider(provider) {
+  const originName = document.getElementById("originSelect") ? document.getElementById("originSelect").value : "Chennai Central";
+  const destName = document.getElementById("destSelect") ? document.getElementById("destSelect").value : "CMBT Koyambedu";
+  
+  const originObj = (typeof CHENNAI_BUS_STOPS !== "undefined") ? CHENNAI_BUS_STOPS.find(s => s.name === originName) : null;
+  const destObj = (typeof CHENNAI_BUS_STOPS !== "undefined") ? CHENNAI_BUS_STOPS.find(s => s.name === destName) : null;
+  
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  
+  if (provider === 'rapido') {
+    if (isMobile) {
+      const startTime = Date.now();
+      window.location.href = "rapido://";
+      setTimeout(() => {
+        if (Date.now() - startTime < 1800) {
+          window.open("https://play.google.com/store/apps/details?id=com.rapido.passenger", "_blank");
+        }
+      }, 1500);
+    } else {
+      window.open("https://www.rapido.bike/", "_blank");
+    }
+  } else if (provider === 'uber') {
+    if (originObj && destObj) {
+      const pLat = originObj.lat, pLng = originObj.lng;
+      const dLat = destObj.lat, dLng = destObj.lng;
+      const uberUrl = `https://m.uber.com/ul/?action=setPickup&client_id=smarttransit&pickup[latitude]=${pLat}&pickup[longitude]=${pLng}&pickup[nickname]=${encodeURIComponent(originName)}&dropoff[latitude]=${dLat}&dropoff[longitude]=${dLng}&dropoff[nickname]=${encodeURIComponent(destName)}`;
+      window.open(uberUrl, "_blank");
+    } else {
+      window.open("https://m.uber.com/", "_blank");
+    }
+  } else if (provider === 'auto') {
+    window.open("https://nammayatri.in/", "_blank");
+  } else if (provider === 'bus') {
+    window.open("https://mtcbus.tn.gov.in/", "_blank");
+  }
+}
