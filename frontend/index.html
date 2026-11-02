@@ -115,7 +115,7 @@
         </button>
       </div>
 
-      <!-- Drawer Menu List -->
+      <!-- Drawer Menu List (Matching Uploaded Screenshot) -->
       <nav class="p-3 space-y-1 text-xs font-semibold text-slate-700 dark:text-slate-200 overflow-y-auto max-h-[calc(100vh-180px)]">
         <button data-modal="modalTickets" class="drawer-item w-full flex items-center justify-between px-3.5 py-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition">
           <div class="flex items-center space-x-3.5">
@@ -219,6 +219,7 @@
         </button>
       </div>
       <div id="featureModalBody" class="text-xs space-y-3">
+        <!-- Dynamically injected by app.js -->
       </div>
     </div>
   </div>
@@ -258,21 +259,25 @@
 
       <!-- Right Action Controls: SOS Button, Alerts Bell, Theme Toggle (Day/Night), User Badge -->
       <div class="flex items-center space-x-2 sm:space-x-2.5">
+        <!-- Emergency SOS Quick Button -->
         <button id="headerSosBtn" class="px-3 py-2 rounded-full bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs flex items-center space-x-1.5 shadow-md shadow-rose-600/20 transition" title="Emergency SOS">
           <i class="fa-solid fa-shield-heart"></i>
           <span>SOS</span>
         </button>
 
+        <!-- Notifications Bell -->
         <button id="headerAlertsBtn" class="relative w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-200 transition" title="Transit Alerts">
           <i class="fa-solid fa-bell text-sm"></i>
           <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500"></span>
         </button>
 
+        <!-- Day / Night Theme Switcher -->
         <button id="themeToggleBtn" class="px-3 py-2 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold text-xs flex items-center space-x-1.5 border border-slate-200 dark:border-slate-700 transition" title="Switch Day / Night Theme">
           <i id="themeIcon" class="fa-solid fa-moon text-indigo-600 dark:text-amber-300"></i>
           <span id="themeText" class="hidden sm:inline">Night Mode</span>
         </button>
 
+        <!-- Logged-in User Pill -->
         <button id="headerProfileBtn" class="hidden lg:flex items-center space-x-2 pl-2 pr-3 py-1.5 rounded-full bg-slate-950 dark:bg-blue-600 text-white text-xs font-semibold shadow-xs">
           <span class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center font-bold text-[10px]" id="headerUserInitial">S</span>
           <span id="headerUserName">Sadhan</span>
@@ -282,13 +287,13 @@
     </div>
   </header>
 
-  <!-- MAIN WORKSPACE GRID -->
+  <!-- MAIN WORKSPACE GRID (ADAPTS AUTOMATICALLY FOR LAPTOP & MOBILE PHONE) -->
   <main class="flex-1 p-3 sm:p-6 max-w-[1720px] w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-5 pb-24 lg:pb-8">
 
     <!-- LEFT COLUMN: INTERACTIVE MAP & SMOOTH LIVE BUS TRACKER (7 Cols) -->
     <section id="sectionMap" class="lg:col-span-7 flex flex-col space-y-5">
 
-      <!-- Map Card -->
+      <!-- Antigravity Rainbow Halo Map Card -->
       <div class="relative rounded-3xl p-[1.5px] bg-gradient-to-tr from-blue-500/30 via-purple-500/20 to-amber-500/30 shadow-[0_20px_50px_rgba(15,23,42,0.06)]">
         <div class="bg-white dark:bg-slate-900 rounded-[23px] p-4 sm:p-5 flex flex-col">
           
@@ -303,6 +308,7 @@
             </div>
             
             <div class="flex flex-wrap items-center gap-1.5">
+              <!-- Click Mode Toggle -->
               <div class="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-full border border-slate-200 dark:border-slate-700 text-[11px] font-semibold">
                 <button id="modePickOrigin" class="px-2.5 py-1 rounded-full text-slate-600 dark:text-slate-300 hover:text-slate-950 transition">
                   <i class="fa-solid fa-location-dot text-blue-600 mr-1"></i>Origin
@@ -312,6 +318,7 @@
                 </button>
               </div>
 
+              <!-- Map Tile Switcher -->
               <div class="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-full border border-slate-200 dark:border-slate-700 text-[11px] font-semibold">
                 <button id="btnStreetMap" class="px-2.5 py-1 rounded-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs transition">Streets</button>
                 <button id="btnSatMap" class="px-2.5 py-1 rounded-full text-slate-600 dark:text-slate-400 hover:text-slate-900 transition">Satellite</button>
@@ -327,7 +334,7 @@
           <div class="relative w-full h-[360px] sm:h-[450px] rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-inner">
             <div id="transitMap" class="w-full h-full z-0"></div>
 
-            <!-- Live Smooth Telemetry Overlay Pill -->
+            <!-- Live Smooth Telemetry Overlay Pill (Top Right on Map) -->
             <div class="absolute top-3 right-3 z-[400] bg-slate-950/90 text-white backdrop-blur-md px-3.5 py-2 rounded-2xl border border-white/15 shadow-lg text-[11px] font-mono flex items-center space-x-3">
               <div class="flex items-center space-x-1.5">
                 <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -353,7 +360,7 @@
         </div>
       </div>
 
-      <!-- LIVE BUS JOURNEY TIMELINE -->
+      <!-- LIVE BUS JOURNEY TIMELINE (PASSED STOPS vs CURRENT BUS vs UPCOMING STOPS) -->
       <div id="sectionLiveTracker" class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-4 sm:p-5 shadow-[0_12px_35px_rgba(15,23,42,0.04)] flex flex-col space-y-4">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div class="flex items-center space-x-2.5">
@@ -376,12 +383,12 @@
           </div>
         </div>
 
-        <!-- Progress Bar -->
+        <!-- Smooth Continuous Progress Bar -->
         <div class="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-200 dark:border-slate-700">
           <div id="smoothRouteProgressBar" class="bg-gradient-to-r from-blue-600 via-indigo-500 to-emerald-500 h-full rounded-full transition-all duration-150" style="width: 25%"></div>
         </div>
 
-        <!-- Horizontal Timeline -->
+        <!-- Horizontal Visual Timeline of Passed, Current & Upcoming Stops -->
         <div id="liveJourneyTimeline" class="grid grid-cols-1 sm:grid-cols-5 gap-2.5 pt-1">
         </div>
       </div>
@@ -509,87 +516,97 @@
 
         <div class="space-y-2.5">
           
-          <!-- 1. Official MTC / TNSTC Bus (Clickable) -->
-          <div onclick="openTransitProvider('bus')" title="Click to open Official MTC Portal" class="cursor-pointer hover:border-blue-500 hover:shadow-md hover:scale-[1.01] active:scale-[0.98] transition-all p-3.5 rounded-2xl border-2 border-blue-600 bg-blue-50/30 dark:bg-blue-950/30 flex items-center justify-between relative overflow-hidden">
-            <span class="absolute top-0 right-0 bg-blue-600 text-white text-[9px] font-extrabold uppercase px-2.5 py-0.5 rounded-bl-xl">Official Govt Fare</span>
-            <div class="flex items-center space-x-3.5">
-              <div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center text-base shadow-xs">
-                <i class="fa-solid fa-bus"></i>
-              </div>
-              <div>
-                <div class="flex items-center space-x-2">
-                  <span class="font-bold text-xs text-slate-950 dark:text-white">MTC / TNSTC State Bus</span>
-                  <span class="text-[10px] text-blue-700 dark:text-blue-300 font-mono font-semibold bg-blue-100 dark:bg-blue-900 px-2 py-0.5 rounded-md" id="busSubtext">Ordinary / Deluxe</span>
+          <!-- 1. Official MTC / TNSTC Bus (Clickable Link) -->
+          <a href="https://mtcbus.tn.gov.in/" target="_blank" rel="noopener noreferrer" title="Click to open Official Tamil Nadu MTC Portal" class="block cursor-pointer hover:border-blue-500 hover:shadow-md hover:scale-[1.01] active:scale-[0.98] transition-all p-3.5 rounded-2xl border-2 border-blue-600 bg-blue-50/30 dark:bg-blue-950/30 text-inherit no-underline relative overflow-hidden">
+            <span class="absolute top-0 right-0 bg-blue-600 text-white text-[9px] font-extrabold uppercase px-2.5 py-0.5 rounded-bl-xl">Official Govt Fare ↗</span>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-3.5">
+                <div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center text-base shadow-xs">
+                  <i class="fa-solid fa-bus"></i>
                 </div>
-                <p class="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5 font-medium" id="busEta">Drop in ~24 mins • Stage-based G.O. Tariff</p>
+                <div>
+                  <div class="flex items-center space-x-2">
+                    <span class="font-bold text-xs text-slate-950 dark:text-white">MTC / TNSTC State Bus</span>
+                    <span class="text-[10px] text-blue-700 dark:text-blue-300 font-mono font-semibold bg-blue-100 dark:bg-blue-900 px-2 py-0.5 rounded-md" id="busSubtext">Ordinary / Deluxe</span>
+                  </div>
+                  <p class="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5 font-medium" id="busEta">Drop in ~24 mins • Stage-based G.O. Tariff</p>
+                </div>
+              </div>
+              <div class="text-right">
+                <span class="text-base font-extrabold font-mono text-blue-700 dark:text-blue-400" id="busPrice">₹ 10</span>
+                <p class="text-[10px] text-slate-500 dark:text-slate-400 font-mono" id="busSlabDetail">Ord: ₹10 | Dlx: ₹19</p>
               </div>
             </div>
-            <div class="text-right">
-              <span class="text-base font-extrabold font-mono text-blue-700 dark:text-blue-400" id="busPrice">₹ 10</span>
-              <p class="text-[10px] text-slate-500 dark:text-slate-400 font-mono" id="busSlabDetail">Ord: ₹10 | Dlx: ₹19</p>
-            </div>
-          </div>
+          </a>
 
-          <!-- 2. Rapido Bike Taxi (Clickable) -->
-          <div onclick="openTransitProvider('rapido')" title="Click to open Rapido App / Web" class="cursor-pointer hover:border-amber-400 hover:shadow-md hover:scale-[1.01] active:scale-[0.98] transition-all p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/50 flex items-center justify-between relative overflow-hidden">
-            <span class="absolute top-0 right-0 bg-amber-400 text-slate-950 text-[9px] font-extrabold uppercase px-2.5 py-0.5 rounded-bl-xl" id="rapidoBadge">Fastest Drop</span>
-            <div class="flex items-center space-x-3.5">
-              <div class="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 flex items-center justify-center text-base">
-                <i class="fa-solid fa-motorcycle"></i>
-              </div>
-              <div>
-                <div class="flex items-center space-x-1.5">
-                  <span class="font-bold text-xs text-slate-900 dark:text-white">Rapido Bike Taxi</span>
-                  <span class="text-[10px] text-amber-700 dark:text-amber-400 font-mono font-semibold">1 Seat</span>
+          <!-- 2. Rapido Bike Taxi (Clickable Link) -->
+          <a href="https://www.rapido.bike/" target="_blank" rel="noopener noreferrer" title="Click to open Rapido Bike Taxi" class="block cursor-pointer hover:border-amber-400 hover:shadow-md hover:scale-[1.01] active:scale-[0.98] transition-all p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/50 text-inherit no-underline relative overflow-hidden">
+            <span class="absolute top-0 right-0 bg-amber-400 text-slate-950 text-[9px] font-extrabold uppercase px-2.5 py-0.5 rounded-bl-xl flex items-center" id="rapidoBadge">Fastest Drop <i class="fa-solid fa-arrow-up-right-from-square ml-1 text-[8px]"></i></span>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-3.5">
+                <div class="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 flex items-center justify-center text-base">
+                  <i class="fa-solid fa-motorcycle"></i>
                 </div>
-                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5" id="rapidoEta">Drop in ~16 mins • Beats traffic</p>
+                <div>
+                  <div class="flex items-center space-x-1.5">
+                    <span class="font-bold text-xs text-slate-900 dark:text-white">Rapido Bike Taxi</span>
+                    <span class="text-[10px] text-amber-700 dark:text-amber-400 font-mono font-semibold">1 Seat</span>
+                  </div>
+                  <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5" id="rapidoEta">Drop in ~16 mins • Beats traffic</p>
+                </div>
+              </div>
+              <div class="text-right">
+                <span class="text-sm font-bold font-mono text-slate-900 dark:text-white" id="rapidoPrice">₹ 95</span>
+                <p class="text-[10px] text-slate-400">₹25 base + ₹11/km</p>
               </div>
             </div>
-            <div class="text-right">
-              <span class="text-sm font-bold font-mono text-slate-900 dark:text-white" id="rapidoPrice">₹ 95</span>
-              <p class="text-[10px] text-slate-400">₹25 base + ₹11/km</p>
-            </div>
-          </div>
+          </a>
 
-          <!-- 3. Auto Rickshaw (Clickable) -->
-          <div onclick="openTransitProvider('auto')" title="Click to open Namma Yatri / ONDC Auto" class="cursor-pointer hover:border-purple-400 hover:shadow-md hover:scale-[1.01] active:scale-[0.98] transition-all p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/50 flex items-center justify-between">
-            <div class="flex items-center space-x-3.5">
-              <div class="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 flex items-center justify-center text-base">
-                <i class="fa-solid fa-taxi"></i>
-              </div>
-              <div>
-                <div class="flex items-center space-x-1.5">
-                  <span class="font-bold text-xs text-slate-900 dark:text-white">Auto Rickshaw (ONDC / App)</span>
-                  <span class="text-[10px] text-purple-700 dark:text-purple-400 font-mono font-semibold">3 Seats</span>
+          <!-- 3. Auto Rickshaw (Clickable Link) -->
+          <a href="https://nammayatri.in/" target="_blank" rel="noopener noreferrer" title="Click to open Namma Yatri Auto Booking" class="block cursor-pointer hover:border-purple-400 hover:shadow-md hover:scale-[1.01] active:scale-[0.98] transition-all p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/50 text-inherit no-underline relative overflow-hidden">
+            <span class="absolute top-0 right-0 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 text-[9px] font-bold px-2 py-0.5 rounded-bl-xl flex items-center">ONDC Open Ride ↗</span>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-3.5">
+                <div class="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 flex items-center justify-center text-base">
+                  <i class="fa-solid fa-taxi"></i>
                 </div>
-                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5" id="autoEta">Drop in ~21 mins • Door-to-door</p>
+                <div>
+                  <div class="flex items-center space-x-1.5">
+                    <span class="font-bold text-xs text-slate-900 dark:text-white">Auto Rickshaw (ONDC / App)</span>
+                    <span class="text-[10px] text-purple-700 dark:text-purple-400 font-mono font-semibold">3 Seats</span>
+                  </div>
+                  <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5" id="autoEta">Drop in ~21 mins • Door-to-door</p>
+                </div>
+              </div>
+              <div class="text-right">
+                <span class="text-sm font-bold font-mono text-slate-900 dark:text-white" id="autoPrice">₹ 165</span>
+                <p class="text-[10px] text-slate-400">₹50 min + ₹15/km</p>
               </div>
             </div>
-            <div class="text-right">
-              <span class="text-sm font-bold font-mono text-slate-900 dark:text-white" id="autoPrice">₹ 165</span>
-              <p class="text-[10px] text-slate-400">₹50 min + ₹15/km</p>
-            </div>
-          </div>
+          </a>
 
-          <!-- 4. Uber Go AC Cab (Clickable) -->
-          <div onclick="openTransitProvider('uber')" title="Click to open Uber App / Web" class="cursor-pointer hover:border-slate-400 hover:shadow-md hover:scale-[1.01] active:scale-[0.98] transition-all p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/50 flex items-center justify-between">
-            <div class="flex items-center space-x-3.5">
-              <div class="w-10 h-10 rounded-xl bg-slate-900 dark:bg-slate-700 text-white flex items-center justify-center text-base">
-                <i class="fa-solid fa-car"></i>
-              </div>
-              <div>
-                <div class="flex items-center space-x-1.5">
-                  <span class="font-bold text-xs text-slate-900 dark:text-white">Uber Go / AC Cab</span>
-                  <span class="text-[10px] text-slate-500 dark:text-slate-400 font-mono font-semibold">4 Seats AC</span>
+          <!-- 4. Uber Go / AC Cab (Clickable Link) -->
+          <a id="uberLiveLink" href="https://m.uber.com/ul/?action=setPickup" target="_blank" rel="noopener noreferrer" title="Click to open Uber Booking" class="block cursor-pointer hover:border-slate-400 hover:shadow-md hover:scale-[1.01] active:scale-[0.98] transition-all p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/50 text-inherit no-underline relative overflow-hidden">
+            <span class="absolute top-0 right-0 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-[9px] font-bold px-2 py-0.5 rounded-bl-xl flex items-center">Uber Cab ↗</span>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-3.5">
+                <div class="w-10 h-10 rounded-xl bg-slate-900 dark:bg-slate-700 text-white flex items-center justify-center text-base">
+                  <i class="fa-solid fa-car"></i>
                 </div>
-                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5" id="uberEta">Drop in ~22 mins • Weather-proof</p>
+                <div>
+                  <div class="flex items-center space-x-1.5">
+                    <span class="font-bold text-xs text-slate-900 dark:text-white">Uber Go / AC Cab</span>
+                    <span class="text-[10px] text-slate-500 dark:text-slate-400 font-mono font-semibold">4 Seats AC</span>
+                  </div>
+                  <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5" id="uberEta">Drop in ~22 mins • Weather-proof</p>
+                </div>
+              </div>
+              <div class="text-right">
+                <span class="text-sm font-bold font-mono text-slate-900 dark:text-white" id="uberPrice">₹ 245</span>
+                <p class="text-[10px] text-slate-400">₹75 base + ₹18/km</p>
               </div>
             </div>
-            <div class="text-right">
-              <span class="text-sm font-bold font-mono text-slate-900 dark:text-white" id="uberPrice">₹ 245</span>
-              <p class="text-[10px] text-slate-400">₹75 base + ₹18/km</p>
-            </div>
-          </div>
+          </a>
 
         </div>
 
@@ -606,7 +623,9 @@
 
   </main>
 
-  <!-- MOBILE PHONE BOTTOM NAVIGATION BAR -->
+  <!-- ======================================================================= -->
+  <!-- 4. MOBILE PHONE BOTTOM APP NAVIGATION BAR (VISIBLE ON PHONES/TABLETS)   -->
+  <!-- ======================================================================= -->
   <nav class="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 z-[1500] px-4 py-2 flex items-center justify-around text-[11px] font-bold text-slate-600 dark:text-slate-400 shadow-2xl">
     <a href="#sectionMap" class="flex flex-col items-center space-y-1 text-blue-600 dark:text-blue-400">
       <i class="fa-solid fa-map-location-dot text-base"></i>

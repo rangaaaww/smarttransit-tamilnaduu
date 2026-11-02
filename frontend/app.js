@@ -11,11 +11,11 @@ let clickPickMode = "DEST";
 // =============================================================================
 // 1. CONTINUOUS SMOOTH GLIDING BUS ENGINE STATE (NO JUMPING!)
 // =============================================================================
-let activeJourneyStops = [];
-let busContinuousProgress = 0.15;
+let activeJourneyStops = []; // [{ key, name, lat, lng }, ...]
+let busContinuousProgress = 0.15; // Float from 0.0 (Origin) to (N - 1) (Destination)
 let isBusPaused = false;
 let currentActiveBusNumber = "54";
-let currentLang = "EN";
+let currentLang = "EN"; // "EN" or "TA"
 
 // =============================================================================
 // 2. COMPLETE CHENNAI BUS STANDS & TAMIL NADU HUBS
@@ -156,9 +156,10 @@ document.addEventListener("DOMContentLoaded", () => {
   updateHistoryBadgeCount();
   calculateAndDisplayFares(false);
 
-  // Start Smooth 60 FPS Continuous Bus Gliding Loop
+  // Start Smooth 60 FPS Continuous Bus Gliding Loop (Updates every 120ms smoothly)
   setInterval(tickSmoothBusGlide, 120);
 
+  // Main Search & Route Controls
   document.getElementById("searchBtn")?.addEventListener("click", () => calculateAndDisplayFares(true));
   document.getElementById("originSelect")?.addEventListener("change", () => calculateAndDisplayFares(true));
   document.getElementById("destSelect")?.addEventListener("change", () => calculateAndDisplayFares(true));
@@ -175,11 +176,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // Save Favorite Route
   document.getElementById("saveFavoriteRouteBtn")?.addEventListener("click", saveCurrentRouteToFavorites);
 
+  // Map Click Mode Toggle
   document.getElementById("modePickOrigin")?.addEventListener("click", () => setClickPickMode("ORIGIN"));
   document.getElementById("modePickDest")?.addEventListener("click", () => setClickPickMode("DEST"));
 
+  // Map Layer Switcher
   document.getElementById("btnStreetMap")?.addEventListener("click", () => switchLayer("street"));
   document.getElementById("btnSatMap")?.addEventListener("click", () => switchLayer("sat"));
   document.getElementById("btnResetView")?.addEventListener("click", () => {
@@ -187,9 +191,11 @@ document.addEventListener("DOMContentLoaded", () => {
     logTerminal("[MAP] Reset view to Chennai Metropolitan Area.");
   });
 
+  // Pause/Resume & Step Bus Controls
   document.getElementById("pauseResumeBusBtn")?.addEventListener("click", togglePauseBus);
   document.getElementById("stepBusBtn")?.addEventListener("click", jumpToNextStop);
 
+  // Drawer & Modals Wiring
   initDrawerAndModals();
 });
 
@@ -201,6 +207,7 @@ function checkFirstTimeUserOnboarding() {
   const loginModal = document.getElementById("loginModal");
 
   if (!savedUser) {
+    // Show first-time onboarding modal
     if (loginModal) {
       loginModal.classList.remove("hidden");
       loginModal.classList.add("flex");
@@ -312,6 +319,7 @@ function initDrawerAndModals() {
   document.getElementById("closeDrawerBtn")?.addEventListener("click", closeDrawer);
   backdrop?.addEventListener("click", closeDrawer);
 
+  // Edit Profile Button inside Drawer
   document.getElementById("editProfileBtn")?.addEventListener("click", () => {
     closeDrawer();
     const loginModal = document.getElementById("loginModal");
@@ -319,10 +327,12 @@ function initDrawerAndModals() {
     loginModal?.classList.add("flex");
   });
 
+  // Quick SOS & Alerts Buttons in Header & Mobile Bottom Nav
   document.getElementById("headerSosBtn")?.addEventListener("click", () => openFeatureModal("modalSOS"));
   document.getElementById("mobileSosNavBtn")?.addEventListener("click", () => openFeatureModal("modalSOS"));
   document.getElementById("headerAlertsBtn")?.addEventListener("click", () => openFeatureModal("modalAlerts"));
 
+  // Drawer menu item clicks
   document.querySelectorAll(".drawer-item").forEach(btn => {
     btn.addEventListener("click", () => {
       closeDrawer();
@@ -331,11 +341,13 @@ function initDrawerAndModals() {
     });
   });
 
+  // Change City Zoom
   document.getElementById("drawerChangeCityBtn")?.addEventListener("click", () => {
     closeDrawer();
     openFeatureModal("modalChangeCity");
   });
 
+  // Language Toggle (English / Tamil)
   document.getElementById("drawerLangBtn")?.addEventListener("click", () => {
     currentLang = currentLang === "EN" ? "TA" : "EN";
     const brand = document.getElementById("brandTitleText");
@@ -348,6 +360,7 @@ function initDrawerAndModals() {
     logTerminal(currentLang === "TA" ? "[மொழி] தமிழ் மொழி தேர்வு செய்யப்பட்டது." : "[LANGUAGE] Switched to English.");
   });
 
+  // Share App
   document.getElementById("shareAppBtn")?.addEventListener("click", () => {
     closeDrawer();
     if (navigator.clipboard) {
@@ -443,7 +456,7 @@ function openFeatureModal(type) {
     } else {
       bodyEl.innerHTML = `
         <div class="space-y-2">
-          ${history.map(h => `
+          ${history.map((h, i) => `
             <div onclick="loadRouteFromModal('${h.origin}','${h.dest}')" class="p-3 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-blue-500 bg-slate-50 dark:bg-slate-800/60 flex items-center justify-between cursor-pointer transition">
               <div>
                 <div class="font-bold text-slate-900 dark:text-white">${h.originName} ➔ ${h.destName}</div>
@@ -918,6 +931,7 @@ function calculateAndDisplayFares(shouldRecordHistory = false) {
     document.getElementById("busSlabDetail").textContent = `Exp: ₹${expressFare} | Ultra Dlx: ₹${ultraDeluxeFare}`;
   }
 
+  // Rapido, Auto, Uber
   if (!isIntercity) {
     const rapidoFare = Math.round(25 + (distance * 11.0));
     const rapidoMins = Math.round((distance / 36) * 60) + 2;
@@ -960,6 +974,7 @@ function calculateAndDisplayFares(shouldRecordHistory = false) {
     recordSearchToHistory(origin, dest, distance, `₹${primaryBusFare}`);
   }
 
+  // Initialize Smooth Gliding Bus Corridor
   setupSmoothBusCorridor(origin, dest, routeDetails.intermediate);
 }
 
@@ -975,7 +990,7 @@ function setupSmoothBusCorridor(originKey, destKey, intermediateKeys) {
     lng: ALL_LOCATIONS[k]?.lng || 80.1818
   }));
 
-  busContinuousProgress = 0.25;
+  busContinuousProgress = 0.25; // Start 25% along the first segment so user immediately sees smooth gliding
 
   drawStaticRouteStopsAndPins();
   updateSmoothBusPositionOnMap();
@@ -1014,7 +1029,7 @@ function tickSmoothBusGlide() {
   const maxProgress = activeJourneyStops.length - 1;
   const prevFloor = Math.floor(busContinuousProgress);
 
-  // Smoothly advance along road segment
+  // Advance smoothly by 0.008 per 120ms (~15 seconds per stop-to-stop segment)
   busContinuousProgress += 0.008;
   if (busContinuousProgress >= maxProgress) {
     busContinuousProgress = 0.0;
@@ -1022,6 +1037,7 @@ function tickSmoothBusGlide() {
 
   const newFloor = Math.floor(busContinuousProgress);
   if (newFloor !== prevFloor) {
+    // Bus just crossed a stop! Refresh stop checkmarks & timeline cards
     drawStaticRouteStopsAndPins();
   }
 
@@ -1046,6 +1062,7 @@ function updateSmoothBusPositionOnMap() {
   const maxProgress = activeJourneyStops.length - 1;
   const pct = Math.min(100, Math.round((busContinuousProgress / maxProgress) * 100));
 
+  // Update Progress Bar & Telemetry Pill
   const bar = document.getElementById("smoothRouteProgressBar");
   if (bar) bar.style.width = `${pct}%`;
 
@@ -1058,6 +1075,7 @@ function updateSmoothBusPositionOnMap() {
     speedLabel.textContent = `${liveSpeed} km/h`;
   }
 
+  // Smoothly move the Bus Marker without recreating DOM
   if (!liveMovingBusMarker) {
     const busHtml = `
       <div class="live-bus-pulse" style="
@@ -1089,6 +1107,7 @@ function updateSmoothBusPositionOnMap() {
     if (lbl) lbl.textContent = `BUS #${currentActiveBusNumber}`;
   }
 
+  // Update Passed Polyline & Upcoming Polyline smoothly up to the exact bus coordinate
   const passedLatLngs = activeJourneyStops.slice(0, segIdx + 1).map(s => [s.lat, s.lng]);
   passedLatLngs.push([lat, lng]);
 
@@ -1176,6 +1195,7 @@ function drawStaticRouteStopsAndPins() {
     }
   });
 
+  // Render Timeline Cards
   const timelineEl = document.getElementById("liveJourneyTimeline");
   if (timelineEl) {
     timelineEl.innerHTML = activeJourneyStops.map((stop, idx) => {
@@ -1228,8 +1248,11 @@ function renderFleetTable(fleetList) {
   const tbody = document.getElementById("fleetTableBody");
   if (!tbody) return;
   tbody.innerHTML = fleetList.map(v => `
-    <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
-      <td class="py-2.5 px-3 font-bold text-slate-900 dark:text-white">${v.vehicleId}</td>
+    <tr onclick="selectFleetBus('${v.vehicleId}')" title="Click to track ${v.vehicleId} live on map" class="cursor-pointer hover:bg-blue-50/70 dark:hover:bg-blue-950/40 transition group">
+      <td class="py-2.5 px-3 font-bold text-slate-900 dark:text-white group-hover:text-blue-600 transition flex items-center space-x-1.5">
+        <i class="fa-solid fa-bus text-[10px] text-blue-500 opacity-0 group-hover:opacity-100 transition"></i>
+        <span>${v.vehicleId}</span>
+      </td>
       <td class="py-2.5 px-3 text-blue-700 dark:text-blue-400 font-semibold font-sans text-xs">${v.type}</td>
       <td class="py-2.5 px-3 text-slate-700 dark:text-slate-300 font-sans text-xs font-medium">${v.corridor}</td>
       <td class="py-2.5 px-3">
@@ -1242,7 +1265,13 @@ function renderFleetTable(fleetList) {
       </td>
       <td class="py-2.5 px-3 text-slate-600 dark:text-slate-400">${v.speed} km/h</td>
       <td class="py-2.5 px-3 text-right">
-        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">${v.status}</span>
+        <div class="flex items-center justify-end space-x-2">
+          <span class="hidden sm:inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">${v.status}</span>
+          <button class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-600 hover:bg-blue-700 text-white transition flex items-center space-x-1 shadow-xs">
+            <i class="fa-solid fa-location-crosshairs text-[9px]"></i>
+            <span>Track</span>
+          </button>
+        </div>
       </td>
     </tr>
   `).join("");
@@ -1252,13 +1281,16 @@ function logTerminal(msg) {
   const term = document.getElementById("terminalLog");
   if (term) term.textContent = msg;
 }
+
+
 // ============================================================================
-// TRANSIT APP REDIRECTION (Rapido, Uber, Namma Yatri, MTC Bus)
+// TRANSIT APP REDIRECTION & DEEP LINKING (Rapido, Uber, Namma Yatri, MTC Bus)
 // ============================================================================
 function openTransitProvider(provider) {
   const originName = document.getElementById("originSelect") ? document.getElementById("originSelect").value : "Chennai Central";
   const destName = document.getElementById("destSelect") ? document.getElementById("destSelect").value : "CMBT Koyambedu";
   
+  // Find coordinate points
   const originObj = (typeof CHENNAI_BUS_STOPS !== "undefined") ? CHENNAI_BUS_STOPS.find(s => s.name === originName) : null;
   const destObj = (typeof CHENNAI_BUS_STOPS !== "undefined") ? CHENNAI_BUS_STOPS.find(s => s.name === destName) : null;
   
@@ -1266,6 +1298,7 @@ function openTransitProvider(provider) {
   
   if (provider === 'rapido') {
     if (isMobile) {
+      // Attempt to launch Rapido mobile app, fallback to Google Play Store
       const startTime = Date.now();
       window.location.href = "rapido://";
       setTimeout(() => {
@@ -1277,6 +1310,7 @@ function openTransitProvider(provider) {
       window.open("https://www.rapido.bike/", "_blank");
     }
   } else if (provider === 'uber') {
+    // Official Uber Universal Web & Mobile Deep Link with coordinates prefilled
     if (originObj && destObj) {
       const pLat = originObj.lat, pLng = originObj.lng;
       const dLat = destObj.lat, dLng = destObj.lng;
@@ -1286,61 +1320,93 @@ function openTransitProvider(provider) {
       window.open("https://m.uber.com/", "_blank");
     }
   } else if (provider === 'auto') {
+    // Namma Yatri / ONDC Auto booking
     window.open("https://nammayatri.in/", "_blank");
   } else if (provider === 'bus') {
+    // Official MTC Portal
     window.open("https://mtcbus.tn.gov.in/", "_blank");
   }
 }
 
-// ============================================================================
-// TRANSIT REDIRECTION (Rapido, Uber, Auto, MTC)
-// ============================================================================
-function openTransitProvider(p) {
-  const o = document.getElementById('originSelect') ? document.getElementById('originSelect').value : 'Chennai Central';
-  const d = document.getElementById('destSelect') ? document.getElementById('destSelect').value : 'CMBT Koyambedu';
-  const m = /Android|iPhone|iPad/i.test(navigator.userAgent);
-  if (p === 'rapido') {
-    if (m) {
-      window.location.href = 'rapido://';
-      setTimeout(() => { window.open('https://play.google.com/store/apps/details?id=com.rapido.passenger', '_blank'); }, 1500);
-    } else {
-      window.open('https://www.rapido.bike/', '_blank');
-    }
-  } else if (p === 'uber') {
-    window.open('https://m.uber.com/ul/?action=setPickup&client_id=smarttransit&pickup[nickname]=' + encodeURIComponent(o) + '&dropoff[nickname]=' + encodeURIComponent(d), '_blank');
-  } else if (p === 'auto') {
-    window.open('https://nammayatri.in/', '_blank');
-  } else if (p === 'bus') {
-    window.open('https://mtcbus.tn.gov.in/', '_blank');
-  }
-}
 
+// Automatically bind click events to the cards on page load
 function attachTransitClickHandlers() {
-  const list = [
-    { id: 'rapidoPrice', t: 'rapido' },
-    { id: 'uberPrice', t: 'uber' },
-    { id: 'autoPrice', t: 'auto' },
-    { id: 'busPrice', t: 'bus' }
+  const providers = [
+    { id: "rapidoPrice", type: "rapido", title: "Click to open Rapido" },
+    { id: "uberPrice", type: "uber", title: "Click to open Uber" },
+    { id: "autoPrice", type: "auto", title: "Click to open Namma Yatri / Auto" },
+    { id: "busPrice", type: "bus", title: "Click to open MTC Portal" }
   ];
-  list.forEach(item => {
-    const el = document.getElementById(item.id);
+
+  providers.forEach(p => {
+    const el = document.getElementById(p.id);
     if (el) {
       const card = el.closest('.rounded-2xl') || el.parentElement.parentElement;
-      if (card && !card.dataset.clickable) {
-        card.dataset.clickable = 'true';
-        card.style.cursor = 'pointer';
-        card.onclick = () => openTransitProvider(item.t);
-        card.onmouseenter = () => card.style.transform = 'scale(1.02)';
-        card.onmouseleave = () => card.style.transform = 'scale(1.0)';
+      if (card) {
+        card.style.cursor = "pointer";
+        card.title = p.title;
+        card.onclick = () => openTransitProvider(p.type);
         card.style.transition = 'transform 0.15s ease, box-shadow 0.15s ease';
       }
     }
   });
 }
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', attachTransitClickHandlers);
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", attachTransitClickHandlers);
 } else {
   attachTransitClickHandlers();
 }
-setInterval(attachTransitClickHandlers, 1500);
+setInterval(attachTransitClickHandlers, 2000);
+
+
+// ============================================================================
+// INTERACTIVE FLEET TABLE ROW CLICK & BUS TRACKING
+// ============================================================================
+function selectFleetBus(vehicleId) {
+  const fleetList = window.ACTIVE_FLEET_DATA || [];
+  const v = fleetList.find(b => b.vehicleId === vehicleId);
+  if (!v) return;
+
+  // Extract stops from corridor (e.g., "Ramapuram -> T. Nagar")
+  const parts = v.corridor.split("->").map(s => s.trim());
+  if (parts.length >= 2) {
+    const origSelect = document.getElementById("originSelect");
+    const destSelect = document.getElementById("destSelect");
+    if (origSelect && destSelect) {
+      // Find matching option values
+      for (let opt of origSelect.options) {
+        if (opt.value.toLowerCase().includes(parts[0].toLowerCase())) {
+          origSelect.value = opt.value;
+          break;
+        }
+      }
+      for (let opt of destSelect.options) {
+        if (opt.value.toLowerCase().includes(parts[1].toLowerCase())) {
+          destSelect.value = opt.value;
+          break;
+        }
+      }
+    }
+  }
+
+  // Update banner subtitle
+  const subtitle = document.getElementById("liveBusStatusSubtitle");
+  if (subtitle) {
+    subtitle.innerHTML = `<span class="text-blue-600 dark:text-blue-400 font-bold">Now Tracking ${v.vehicleId}</span> • ${v.type} along <strong>${v.corridor}</strong> (${v.speed} km/h, Load: ${v.occupancy}/${v.capacity})`;
+  }
+
+  // Recalculate route & smooth glider
+  if (typeof calculateAndDisplayFares === "function") {
+    calculateAndDisplayFares(false);
+  }
+
+  // Smooth scroll to map
+  const mapSec = document.getElementById("sectionMap");
+  if (mapSec) {
+    mapSec.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  // Update terminal readout
+  logTerminal(`[DISPATCH] Tracking active unit ${v.vehicleId} (${v.corridor}). GPS speed: ${v.speed} km/h.`);
+}
