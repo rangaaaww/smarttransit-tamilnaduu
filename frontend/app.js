@@ -1410,3 +1410,30 @@ function selectFleetBus(vehicleId) {
   // Update terminal readout
   logTerminal(`[DISPATCH] Tracking active unit ${v.vehicleId} (${v.corridor}). GPS speed: ${v.speed} km/h.`);
 }
+
+
+function renderFleetTable(fleetList) {
+  const tbody = document.getElementById("fleetTableBody");
+  if (!tbody) return;
+  tbody.innerHTML = fleetList.map(v => `
+    <tr onclick="selectFleetBus('${v.vehicleId}')" title="Click to track ${v.vehicleId} live on map" class="cursor-pointer hover:bg-blue-50/70 dark*hover:bg-blue-950/40 transition group">
+      <td class="py-2.5 px-3 font-bold text-slate-900 dark:text-white whitespace-nowrap">
+        ${v.vehicleId}
+      </td>
+      <td class="py-2.5 px-3 text-blue-700 dark:text-blue-400 font-semibold font-sans text-xs whitespace-nowrap">${v.type}</td>
+      <td class="py-2.5 px-3 text-slate-700 dark:text-slate-300 font-sans text-xs font-medium whitespace-nowrap">${v.corridor}</td>
+      <td class="py-2.5 px-3 whitespace-nowrap">
+        <div class="flex items-center space-x-2">
+          <div class="w-16 bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden shrink-0">
+            <div class="h-full ${v.occupancyRate > 85 ? 'bg-rose-500' : 'bg-blue-600'}" style="width:${v.occupancyRate}%"></div>
+          </div>
+          <span class="text-[11px] text-slate-600 dark:text-slate-400">${v.occupancy}/${v.capacity}</span>
+        </div>
+      </td>
+      <td class="py-2.5 px-3 text-slate-600 dark:text-slate-400 whitespace-nowrap">${v.speed} km/h</td>
+      <td class="py-2.5 px-3 text-right whitespace-nowrap">
+        <span class="inline-flex items-center justify-center whitespace-nowrap px-3 py-1 rounded-full text-[10px] font-bold tracking-wide bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 shadow-xs">${v.status}</span>
+      </td>
+    </tr>
+  `).join("");
+}
