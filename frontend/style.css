@@ -1,0 +1,54 @@
+/* Google Antigravity Daylight & Midnight Glassmorphism Styling */
+#transitMap {
+  background: #F1F5F9;
+  cursor: crosshair;
+}
+
+html.dark #transitMap {
+  background: #0F172A;
+}
+
+.map-node-tooltip {
+  background: rgba(15, 23, 42, 0.95) !important;
+  color: #FFFFFF !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 10px !important;
+  font-size: 11px !important;
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  padding: 5px 10px !important;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.25) !important;
+}
+
+@keyframes pulseRing {
+  0% { transform: scale(0.9); opacity: 0.9; }
+  70% { transform: scale(1.45); opacity: 0; }
+  100% { transform: scale(1.45); opacity: 0; }
+}
+
+.live-bus-pulse {
+  position: relative;
+  transition: transform 0.1s linear;
+}
+.live-bus-pulse::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 9999px;
+  border: 2px solid #2563EB;
+  animation: pulseRing 1.8s infinite;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 9999px;
+}
+html.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+}
