@@ -139,9 +139,9 @@ const ROUTE_DIRECTORY = {
 const mockFleet = [
   { vehicleId: "MTC-54-DLX", type: "MTC Deluxe (Red)", corridor: "Ramapuram ➔ T. Nagar", occupancy: 36, capacity: 50, occupancyRate: 72, speed: 34, status: "ON TIME" },
   { vehicleId: "MTC-17D-ORD", type: "Ordinary (Pink/White)", corridor: "Poonamallee ➔ Broadway", occupancy: 42, capacity: 48, occupancyRate: 88, speed: 29, status: "WOMEN FREE" },
-  { vehicleId: "MTC-70V-EXP", type: "MTC Express", corridor: "Koyambedu ➔ Kilambakkam", occupancy: 34, capacity: 50, occupancyRate: 68, speed: 41, status: "ON SCHEDULE" },
-  { vehicleId: "MTC-19B-AC", type: "MTC Electric AC", corridor: "TNagar ➔ Siruseri OMR", occupancy: 28, capacity: 40, occupancyRate: 70, speed: 38, status: "ZERO EMISSION" },
-  { vehicleId: "TNSTC-38-UD", type: "TNSTC Ultra Deluxe", corridor: "KCBT ➔ Coimbatore", occupancy: 41, capacity: 44, occupancyRate: 93, speed: 78, status: "HIGHWAY EXPRESS" }
+  { vehicleId: "MTC-70V-EXP", type: "MTC Express", corridor: "Koyambedu ➔ Kilambakkam", occupancy: 34, capacity: 50, occupancyRate: 68, speed: 41, status: "ACTIVE" },
+  { vehicleId: "MTC-19B-AC", type: "MTC Electric AC", corridor: "TNagar ➔ Siruseri OMR", occupancy: 28, capacity: 40, occupancyRate: 70, speed: 38, status: "EV BUS" },
+  { vehicleId: "TNSTC-38-UD", type: "TNSTC Ultra Deluxe", corridor: "KCBT ➔ Coimbatore", occupancy: 41, capacity: 44, occupancyRate: 93, speed: 78, status: "EXPRESS" }
 ];
 
 // =============================================================================

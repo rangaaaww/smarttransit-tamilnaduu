@@ -52,3 +52,6 @@ html.dark #transitMap {
 html.dark ::-webkit-scrollbar-thumb {
   background: #334155;
 }
+
+#fleetTableBody td, #fleetTableBody span { white-space: nowrap !important; word-break: keep-all !important; }
+
