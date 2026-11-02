@@ -1291,3 +1291,56 @@ function openTransitProvider(provider) {
     window.open("https://mtcbus.tn.gov.in/", "_blank");
   }
 }
+
+// ============================================================================
+// TRANSIT REDIRECTION (Rapido, Uber, Auto, MTC)
+// ============================================================================
+function openTransitProvider(p) {
+  const o = document.getElementById('originSelect') ? document.getElementById('originSelect').value : 'Chennai Central';
+  const d = document.getElementById('destSelect') ? document.getElementById('destSelect').value : 'CMBT Koyambedu';
+  const m = /Android|iPhone|iPad/i.test(navigator.userAgent);
+  if (p === 'rapido') {
+    if (m) {
+      window.location.href = 'rapido://';
+      setTimeout(() => { window.open('https://play.google.com/store/apps/details?id=com.rapido.passenger', '_blank'); }, 1500);
+    } else {
+      window.open('https://www.rapido.bike/', '_blank');
+    }
+  } else if (p === 'uber') {
+    window.open('https://m.uber.com/ul/?action=setPickup&client_id=smarttransit&pickup[nickname]=' + encodeURIComponent(o) + '&dropoff[nickname]=' + encodeURIComponent(d), '_blank');
+  } else if (p === 'auto') {
+    window.open('https://nammayatri.in/', '_blank');
+  } else if (p === 'bus') {
+    window.open('https://mtcbus.tn.gov.in/', '_blank');
+  }
+}
+
+function attachTransitClickHandlers() {
+  const list = [
+    { id: 'rapidoPrice', t: 'rapido' },
+    { id: 'uberPrice', t: 'uber' },
+    { id: 'autoPrice', t: 'auto' },
+    { id: 'busPrice', t: 'bus' }
+  ];
+  list.forEach(item => {
+    const el = document.getElementById(item.id);
+    if (el) {
+      const card = el.closest('.rounded-2xl') || el.parentElement.parentElement;
+      if (card && !card.dataset.clickable) {
+        card.dataset.clickable = 'true';
+        card.style.cursor = 'pointer';
+        card.onclick = () => openTransitProvider(item.t);
+        card.onmouseenter = () => card.style.transform = 'scale(1.02)';
+        card.onmouseleave = () => card.style.transform = 'scale(1.0)';
+        card.style.transition = 'transform 0.15s ease, box-shadow 0.15s ease';
+      }
+    }
+  });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', attachTransitClickHandlers);
+} else {
+  attachTransitClickHandlers();
+}
+setInterval(attachTransitClickHandlers, 1500);
