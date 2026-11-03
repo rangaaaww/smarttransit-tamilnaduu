@@ -1,3 +1,114 @@
+
+// =============================================================================
+// LIVE WEATHER & ENVIRONMENTAL SURGE PRICING (OPEN-METEO API & NIGHT TARIFF)
+// =============================================================================
+let liveTransitEnvironment = {
+  temp: 29.5,
+  condition: "Partly Cloudy",
+  isRain: false,
+  isNight: false,
+  weatherSurgeMultiplier: 1.0,
+  nightSurgeMultiplier: 1.0,
+  simulatedSurgeActive: false
+};
+
+// Fetch real-time weather from Open-Meteo API for Chennai (13.0827°N, 80.2707°E)
+async function fetchLiveChennaiWeather() {
+  try {
+    const url = "https://api.open-meteo.com/v1/forecast?latitude=13.0827&longitude=80.2707&current=temperature_2m,weather_code,precipitation,rain&timezone=Asia%2FKolkata";
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Weather API offline");
+    const data = await res.json();
+    
+    if (data && data.current) {
+      liveTransitEnvironment.temp = data.current.temperature_2m || 29;
+      const code = data.current.weather_code || 0;
+      const rain = data.current.rain || data.current.precipitation || 0;
+      
+      // WMO Weather interpretation (51+ is drizzle/rain/thunderstorm)
+      if (code >= 51 || rain > 0.1) {
+        liveTransitEnvironment.isRain = true;
+        liveTransitEnvironment.condition = code >= 95 ? "Thunderstorm Alert" : "Monsoon Rain Detected";
+        liveTransitEnvironment.weatherSurgeMultiplier = code >= 95 ? 1.75 : 1.45;
+      } else if (code >= 1 && code <= 3) {
+        liveTransitEnvironment.isRain = false;
+        liveTransitEnvironment.condition = "Partly Cloudy";
+        liveTransitEnvironment.weatherSurgeMultiplier = 1.0;
+      } else {
+        liveTransitEnvironment.isRain = false;
+        liveTransitEnvironment.condition = "Clear Sky";
+        liveTransitEnvironment.weatherSurgeMultiplier = 1.0;
+      }
+    }
+  } catch (err) {
+    // Graceful offline fallback
+    console.log("Using cached environmental telemetry:", err.message);
+  }
+
+  // Check night hours (10:00 PM to 5:00 AM)
+  const currentHour = new Date().getHours();
+  if (currentHour >= 22 || currentHour < 5) {
+    liveTransitEnvironment.isNight = true;
+    liveTransitEnvironment.nightSurgeMultiplier = 1.35; // 35% night surge on cabs, 50% on autos
+  } else {
+    liveTransitEnvironment.isNight = false;
+    liveTransitEnvironment.nightSurgeMultiplier = 1.0;
+  }
+
+  updateWeatherUIBadge();
+}
+
+function updateWeatherUIBadge() {
+  let badge = document.getElementById("liveWeatherBadge");
+  if (!badge) {
+    const comparisonContainer = document.getElementById("comparisonContainer");
+    if (comparisonContainer && comparisonContainer.parentNode) {
+      badge = document.createElement("div");
+      badge.id = "liveWeatherBadge";
+      comparisonContainer.parentNode.insertBefore(badge, comparisonContainer);
+    } else {
+      return;
+    }
+  }
+
+  const isRain = liveTransitEnvironment.isRain;
+  const isNight = liveTransitEnvironment.isNight;
+  const temp = Math.round(liveTransitEnvironment.temp);
+  const isSimulated = liveTransitEnvironment.simulatedSurgeActive;
+
+  const btnHtml = '<button type="button" onclick="toggleSimulatedSurge()" class="ml-auto text-[11px] font-bold px-3 py-1 rounded-full ' + (isSimulated ? 'bg-amber-500 text-white shadow-md' : 'bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200') + ' hover:opacity-90 transition flex items-center space-x-1 cursor-pointer" title="Click to toggle rain surge demonstration in viva"><i class="fa-solid fa-bolt ' + (isSimulated ? 'text-white' : 'text-amber-500') + '"></i><span>' + (isSimulated ? 'Surge Active (1.55x)' : 'Simulate Rain Surge') + '</span></button>';
+
+  if (isRain && isNight) {
+    badge.className = "mb-3 px-3.5 py-2.5 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs font-semibold flex items-center justify-between shadow-sm";
+    badge.innerHTML = '<div class="flex items-center space-x-2"><i class="fa-solid fa-cloud-bolt text-rose-500 animate-bounce"></i><span>Chennai: ' + temp + '°C (' + liveTransitEnvironment.condition + ') • <strong>Rain & Night Surge (1.6x)</strong> • MTC Fare ₹4 Fixed</span></div>' + btnHtml;
+  } else if (isRain) {
+    badge.className = "mb-3 px-3.5 py-2.5 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs font-semibold flex items-center justify-between shadow-sm";
+    badge.innerHTML = '<div class="flex items-center space-x-2"><i class="fa-solid fa-cloud-showers-heavy text-amber-500 animate-pulse"></i><span>Chennai: ' + temp + '°C (' + liveTransitEnvironment.condition + ') • <strong>1.45x Weather Surge on Uber & Rapido</strong> • MTC Protected</span></div>' + btnHtml;
+  } else if (isNight) {
+    badge.className = "mb-3 px-3.5 py-2.5 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-700 dark:text-indigo-300 text-xs font-semibold flex items-center justify-between shadow-sm";
+    badge.innerHTML = '<div class="flex items-center space-x-2"><i class="fa-solid fa-moon text-indigo-400"></i><span>Chennai: ' + temp + '°C • <strong>Night Hours (10 PM - 5 AM)</strong> • 1.5x Auto RTO Rate</span></div>' + btnHtml;
+  } else {
+    badge.className = "mb-3 px-3.5 py-2.5 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 text-xs font-semibold flex items-center justify-between shadow-sm";
+    badge.innerHTML = '<div class="flex items-center space-x-2"><i class="fa-solid fa-cloud-sun text-blue-500"></i><span>Chennai: ' + temp + '°C (' + liveTransitEnvironment.condition + ') • <strong>Normal Market Fares</strong> • Statutory Price Protection</span></div>' + btnHtml;
+  }
+}
+
+function toggleSimulatedSurge() {
+  liveTransitEnvironment.simulatedSurgeActive = !liveTransitEnvironment.simulatedSurgeActive;
+  if (liveTransitEnvironment.simulatedSurgeActive) {
+    liveTransitEnvironment.isRain = true;
+    liveTransitEnvironment.condition = "Simulated Heavy Rain";
+    liveTransitEnvironment.weatherSurgeMultiplier = 1.55;
+  } else {
+    liveTransitEnvironment.isRain = false;
+    liveTransitEnvironment.condition = "Fair Weather";
+    liveTransitEnvironment.weatherSurgeMultiplier = 1.0;
+  }
+  updateWeatherUIBadge();
+  calculateAndDisplayFares(false);
+  fetchLiveChennaiWeather();
+}
+
 // SmartTransit Tamil Nadu — Next-Gen Google Antigravity Transit & Fare Engine
 // Features: Smooth 60 FPS Gliding Bus Tracker, First-Time Login, Slide-Out App Drawer,
 // SOS Safety Hub, Search History, Day/Night Theme Toggle & Responsive Mobile/Laptop Support
@@ -160,7 +271,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setInterval(tickSmoothBusGlide, 120);
 
   // Main Search & Route Controls
-  document.getElementById("searchBtn")?.addEventListener("click", () => calculateAndDisplayFares(true));
+  document.getElementById("searchBtn")?.addEventListener("click", triggerSearchWithLoading);
   document.getElementById("originSelect")?.addEventListener("change", () => calculateAndDisplayFares(true));
   document.getElementById("destSelect")?.addEventListener("change", () => calculateAndDisplayFares(true));
   document.getElementById("passSelect")?.addEventListener("change", () => calculateAndDisplayFares(false));
@@ -931,18 +1042,38 @@ function calculateAndDisplayFares(shouldRecordHistory = false) {
     document.getElementById("busSlabDetail").textContent = `Exp: ₹${expressFare} | Ultra Dlx: ₹${ultraDeluxeFare}`;
   }
 
-  // Rapido, Auto, Uber
+  // Rapido, Auto, Uber with Live Weather & Night Surge Logic
+  let cabSurgeMultiplier = 1.0;
+  let autoSurgeMultiplier = 1.0;
+  let activeSurgeLabels = [];
+
+  if (typeof liveTransitEnvironment !== "undefined") {
+    if (liveTransitEnvironment.isRain) {
+      cabSurgeMultiplier *= liveTransitEnvironment.weatherSurgeMultiplier;
+      autoSurgeMultiplier *= 1.20; // Auto rain bonus
+      activeSurgeLabels.push("🌧️ Rain Surge");
+    }
+    if (liveTransitEnvironment.isNight) {
+      cabSurgeMultiplier *= liveTransitEnvironment.nightSurgeMultiplier;
+      autoSurgeMultiplier *= 1.50; // Official Tamil Nadu RTO Night Tariff (10 PM to 5 AM: 50% extra)
+      activeSurgeLabels.push("🌙 Night Tariff");
+    }
+  }
+
+  // Cap cab surge between 1.0x and 2.5x
+  cabSurgeMultiplier = Math.min(2.5, Math.max(1.0, cabSurgeMultiplier));
+
   if (!isIntercity) {
-    const rapidoFare = Math.round(25 + (distance * 11.0));
+    const rapidoFare = Math.round((25 + (distance * 11.0)) * cabSurgeMultiplier);
     const rapidoMins = Math.round((distance / 36) * 60) + 2;
     document.getElementById("rapidoPrice").textContent = `₹ ${rapidoFare}`;
-    document.getElementById("rapidoEta").textContent = `Drop in ~${rapidoMins} mins • Beats traffic`;
-    document.getElementById("rapidoBadge").textContent = "Fastest Drop";
+    document.getElementById("rapidoEta").textContent = activeSurgeLabels.length > 0 ? `Drop in ~${rapidoMins} mins • ${activeSurgeLabels.join(" + ")}` : `Drop in ~${rapidoMins} mins • Beats traffic`;
+    document.getElementById("rapidoBadge").textContent = activeSurgeLabels.length > 0 ? activeSurgeLabels[0] : "Fastest Drop";
 
-    const autoFare = Math.max(50, Math.round(50 + Math.max(0, distance - 1.8) * 15.0));
+    const autoFare = Math.round((Math.max(50, 50 + Math.max(0, distance - 1.8) * 15.0)) * autoSurgeMultiplier);
     const autoMins = Math.round((distance / 28) * 60) + 3;
     document.getElementById("autoPrice").textContent = `₹ ${autoFare}`;
-    document.getElementById("autoEta").textContent = `Drop in ~${autoMins} mins • Up to 3 seats`;
+    document.getElementById("autoEta").textContent = (liveTransitEnvironment && liveTransitEnvironment.isNight) ? `Drop in ~${autoMins} mins • 1.5x RTO Night Fare` : `Drop in ~${autoMins} mins • Up to 3 seats`;
   } else {
     document.getElementById("rapidoPrice").textContent = "N/A";
     document.getElementById("rapidoEta").textContent = "City limits only (<45 km)";
@@ -953,10 +1084,10 @@ function calculateAndDisplayFares(shouldRecordHistory = false) {
 
   let uberFare = 0;
   if (!isIntercity) {
-    uberFare = Math.round(75 + (distance * 18.0));
+    uberFare = Math.round((75 + (distance * 18.0)) * cabSurgeMultiplier);
     const uberMins = Math.round((distance / 30) * 60) + 4;
     document.getElementById("uberPrice").textContent = `₹ ${uberFare}`;
-    document.getElementById("uberEta").textContent = `Drop in ~${uberMins} mins • 4-Seat AC Cab`;
+    document.getElementById("uberEta").textContent = activeSurgeLabels.length > 0 ? `Drop in ~${uberMins} mins • ${activeSurgeLabels.join(" + ")}` : `Drop in ~${uberMins} mins • 4-Seat AC Cab`;
   } else {
     uberFare = Math.round(450 + (distance * 14.5));
     const hrs = ((distance / 65)).toFixed(1);
@@ -1030,7 +1161,7 @@ function tickSmoothBusGlide() {
   const prevFloor = Math.floor(busContinuousProgress);
 
   // Advance smoothly by 0.008 per 120ms (~15 seconds per stop-to-stop segment)
-  busContinuousProgress += 0.008;
+  busContinuousProgress += 0.0018; // Realistic calm transit cruising speed
   if (busContinuousProgress >= maxProgress) {
     busContinuousProgress = 0.0;
   }
@@ -1249,29 +1380,22 @@ function renderFleetTable(fleetList) {
   if (!tbody) return;
   tbody.innerHTML = fleetList.map(v => `
     <tr onclick="selectFleetBus('${v.vehicleId}')" title="Click to track ${v.vehicleId} live on map" class="cursor-pointer hover:bg-blue-50/70 dark:hover:bg-blue-950/40 transition group">
-      <td class="py-2.5 px-3 font-bold text-slate-900 dark:text-white group-hover:text-blue-600 transition flex items-center space-x-1.5">
-        <i class="fa-solid fa-bus text-[10px] text-blue-500 opacity-0 group-hover:opacity-100 transition"></i>
-        <span>${v.vehicleId}</span>
+      <td class="py-2.5 px-3 font-bold text-slate-900 dark:text-white group-hover:text-blue-600 transition whitespace-nowrap">
+        ${v.vehicleId}
       </td>
-      <td class="py-2.5 px-3 text-blue-700 dark:text-blue-400 font-semibold font-sans text-xs">${v.type}</td>
-      <td class="py-2.5 px-3 text-slate-700 dark:text-slate-300 font-sans text-xs font-medium">${v.corridor}</td>
-      <td class="py-2.5 px-3">
+      <td class="py-2.5 px-3 text-blue-700 dark:text-blue-400 font-semibold font-sans text-xs whitespace-nowrap">${v.type}</td>
+      <td class="py-2.5 px-3 text-slate-700 dark:text-slate-300 font-sans text-xs font-medium whitespace-nowrap">${v.corridor}</td>
+      <td class="py-2.5 px-3 whitespace-nowrap">
         <div class="flex items-center space-x-2">
-          <div class="w-16 bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
+          <div class="w-16 bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden shrink-0">
             <div class="h-full ${v.occupancyRate > 85 ? 'bg-rose-500' : 'bg-blue-600'}" style="width:${v.occupancyRate}%"></div>
           </div>
           <span class="text-[11px] text-slate-600 dark:text-slate-400">${v.occupancy}/${v.capacity}</span>
         </div>
       </td>
-      <td class="py-2.5 px-3 text-slate-600 dark:text-slate-400">${v.speed} km/h</td>
-      <td class="py-2.5 px-3 text-right">
-        <div class="flex items-center justify-end space-x-2">
-          <span class="hidden sm:inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">${v.status}</span>
-          <button class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-600 hover:bg-blue-700 text-white transition flex items-center space-x-1 shadow-xs">
-            <i class="fa-solid fa-location-crosshairs text-[9px]"></i>
-            <span>Track</span>
-          </button>
-        </div>
+      <td class="py-2.5 px-3 text-slate-600 dark:text-slate-400 whitespace-nowrap">${v.speed} km/h</td>
+      <td class="py-2.5 px-3 text-right whitespace-nowrap">
+        <span class="inline-flex items-center justify-center whitespace-nowrap px-3 py-1 rounded-full text-[10px] font-bold tracking-wide bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 shadow-xs">${v.status}</span>
       </td>
     </tr>
   `).join("");
@@ -1286,50 +1410,56 @@ function logTerminal(msg) {
 // ============================================================================
 // TRANSIT APP REDIRECTION & DEEP LINKING (Rapido, Uber, Namma Yatri, MTC Bus)
 // ============================================================================
+// ============================================================================
+// DYNAMIC PRE-FILLED TRANSIT REDIRECTION (Uber & Rapido Coordinates)
+// ============================================================================
 function openTransitProvider(provider) {
-  const originName = document.getElementById("originSelect") ? document.getElementById("originSelect").value : "Chennai Central";
-  const destName = document.getElementById("destSelect") ? document.getElementById("destSelect").value : "CMBT Koyambedu";
-  
-  // Find coordinate points
-  const originObj = (typeof CHENNAI_BUS_STOPS !== "undefined") ? CHENNAI_BUS_STOPS.find(s => s.name === originName) : null;
-  const destObj = (typeof CHENNAI_BUS_STOPS !== "undefined") ? CHENNAI_BUS_STOPS.find(s => s.name === destName) : null;
-  
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  
-  if (provider === 'rapido') {
+  const originSelect = document.getElementById("originSelect");
+  const destSelect = document.getElementById("destSelect");
+  const originKey = originSelect ? originSelect.value : "Ramapuram";
+  const destKey = destSelect ? destSelect.value : "Koyambedu";
+
+  const originData = (typeof CHENNAI_BUS_STANDS !== "undefined" && CHENNAI_BUS_STANDS[originKey]) ? CHENNAI_BUS_STANDS[originKey] : { name: originKey, lat: 13.0324, lng: 80.1818 };
+  const destData = (typeof CHENNAI_BUS_STANDS !== "undefined" && CHENNAI_BUS_STANDS[destKey]) ? CHENNAI_BUS_STANDS[destKey] : { name: destKey, lat: 13.0694, lng: 80.2057 };
+
+  const pLat = originData.lat, pLng = originData.lng, pName = originData.name || originKey;
+  const dLat = destData.lat, dLng = destData.lng, dName = destData.name || destKey;
+  const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
+
+  if (provider === 'uber') {
+    // Official Uber Universal Deep Link - pre-fills pickup & dropoff coordinates and names
+    const uberUrl = `https://m.uber.com/ul/?action=setPickup&client_id=smarttransit` +
+      `&pickup[latitude]=${pLat}&pickup[longitude]=${pLng}&pickup[nickname]=${encodeURIComponent(pName)}` +
+      `&dropoff[latitude]=${dLat}&dropoff[longitude]=${dLng}&dropoff[nickname]=${encodeURIComponent(dName)}`;
+    window.open(uberUrl, "_blank");
+  } 
+  else if (provider === 'rapido') {
     if (isMobile) {
-      // Attempt to launch Rapido mobile app, fallback to Google Play Store
+      // 1. Try launching Rapido app directly with pickup and dropoff coordinates
+      const rapidoUri = `rapido://ride?pickup_lat=${pLat}&pickup_lng=${pLng}&pickup_address=${encodeURIComponent(pName)}&drop_lat=${dLat}&drop_lng=${dLng}&drop_address=${encodeURIComponent(dName)}`;
       const startTime = Date.now();
-      window.location.href = "rapido://";
+      window.location.href = rapidoUri;
       setTimeout(() => {
         if (Date.now() - startTime < 1800) {
-          window.open("https://play.google.com/store/apps/details?id=com.rapido.passenger", "_blank");
+          // If Rapido app isn't installed, launch Google Maps 2-Wheeler navigation which has direct 1-tap "Book Rapido" button!
+          window.open(`https://www.google.com/maps/dir/?api=1&origin=${pLat},${pLng}&destination=${dLat},${dLng}&travelmode=two-wheeler`, "_blank");
         }
       }, 1500);
     } else {
-      window.open("https://www.rapido.bike/", "_blank");
+      // 2. On laptop/desktop: Open Google Maps 2-Wheeler transit route with both stops prefilled
+      window.open(`https://www.google.com/maps/dir/?api=1&origin=${pLat},${pLng}&destination=${dLat},${dLng}&travelmode=two-wheeler`, "_blank");
     }
-  } else if (provider === 'uber') {
-    // Official Uber Universal Web & Mobile Deep Link with coordinates prefilled
-    if (originObj && destObj) {
-      const pLat = originObj.lat, pLng = originObj.lng;
-      const dLat = destObj.lat, dLng = destObj.lng;
-      const uberUrl = `https://m.uber.com/ul/?action=setPickup&client_id=smarttransit&pickup[latitude]=${pLat}&pickup[longitude]=${pLng}&pickup[nickname]=${encodeURIComponent(originName)}&dropoff[latitude]=${dLat}&dropoff[longitude]=${dLng}&dropoff[nickname]=${encodeURIComponent(destName)}`;
-      window.open(uberUrl, "_blank");
-    } else {
-      window.open("https://m.uber.com/", "_blank");
-    }
-  } else if (provider === 'auto') {
-    // Namma Yatri / ONDC Auto booking
+  } 
+  else if (provider === 'bus') {
+    // Open Google Maps Public Transit route with exact MTC bus numbers & schedule prefilled
+    const gmapsTransitUrl = `https://www.google.com/maps/dir/?api=1&origin=${pLat},${pLng}&destination=${dLat},${dLng}&travelmode=transit`;
+    window.open(gmapsTransitUrl, "_blank");
+  }
+  else if (provider === 'auto') {
     window.open("https://nammayatri.in/", "_blank");
-  } else if (provider === 'bus') {
-    // Official MTC Portal
-    window.open("https://mtcbus.tn.gov.in/", "_blank");
   }
 }
 
-
-// Automatically bind click events to the cards on page load
 function attachTransitClickHandlers() {
   const providers = [
     { id: "rapidoPrice", type: "rapido", title: "Click to open Rapido" },
@@ -1412,28 +1542,45 @@ function selectFleetBus(vehicleId) {
 }
 
 
-function renderFleetTable(fleetList) {
-  const tbody = document.getElementById("fleetTableBody");
-  if (!tbody) return;
-  tbody.innerHTML = fleetList.map(v => `
-    <tr onclick="selectFleetBus('${v.vehicleId}')" title="Click to track ${v.vehicleId} live on map" class="cursor-pointer hover:bg-blue-50/70 dark*hover:bg-blue-950/40 transition group">
-      <td class="py-2.5 px-3 font-bold text-slate-900 dark:text-white whitespace-nowrap">
-        ${v.vehicleId}
-      </td>
-      <td class="py-2.5 px-3 text-blue-700 dark:text-blue-400 font-semibold font-sans text-xs whitespace-nowrap">${v.type}</td>
-      <td class="py-2.5 px-3 text-slate-700 dark:text-slate-300 font-sans text-xs font-medium whitespace-nowrap">${v.corridor}</td>
-      <td class="py-2.5 px-3 whitespace-nowrap">
-        <div class="flex items-center space-x-2">
-          <div class="w-16 bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden shrink-0">
-            <div class="h-full ${v.occupancyRate > 85 ? 'bg-rose-500' : 'bg-blue-600'}" style="width:${v.occupancyRate}%"></div>
-          </div>
-          <span class="text-[11px] text-slate-600 dark:text-slate-400">${v.occupancy}/${v.capacity}</span>
-        </div>
-      </td>
-      <td class="py-2.5 px-3 text-slate-600 dark:text-slate-400 whitespace-nowrap">${v.speed} km/h</td>
-      <td class="py-2.5 px-3 text-right whitespace-nowrap">
-        <span class="inline-flex items-center justify-center whitespace-nowrap px-3 py-1 rounded-full text-[10px] font-bold tracking-wide bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 shadow-xs">${v.status}</span>
-      </td>
-    </tr>
-  `).join("");
+// =============================================================================
+// REALISTIC CALCULATION SKELETON / LOADING ANIMATION (650ms)
+// =============================================================================
+function triggerSearchWithLoading() {
+  const searchBtn = document.getElementById("searchBtn");
+  const comparisonContainer = document.getElementById("comparisonContainer");
+  const timeline = document.getElementById("liveJourneyTimeline");
+
+  if (!searchBtn) {
+    calculateAndDisplayFares(true);
+    return;
+  }
+
+  const oldHtml = searchBtn.innerHTML;
+  searchBtn.disabled = true;
+  searchBtn.classList.add("opacity-80");
+  searchBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin mr-2"></i><span>Computing Dijkstra Path & Weather Surge...</span>`;
+
+  if (comparisonContainer) {
+    comparisonContainer.style.opacity = "0.5";
+    comparisonContainer.style.filter = "grayscale(40%)";
+    comparisonContainer.style.transition = "all 0.25s ease";
+  }
+
+  setTimeout(() => {
+    calculateAndDisplayFares(true);
+    searchBtn.disabled = false;
+    searchBtn.classList.remove("opacity-80");
+    searchBtn.innerHTML = oldHtml;
+    
+    if (comparisonContainer) {
+      comparisonContainer.style.opacity = "1.0";
+      comparisonContainer.style.filter = "none";
+    }
+  }, 650);
+}
+
+
+// Ensure weather is fetched on load
+if (typeof fetchLiveChennaiWeather === 'function') {
+  setTimeout(fetchLiveChennaiWeather, 100);
 }

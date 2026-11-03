@@ -53,5 +53,22 @@ html.dark ::-webkit-scrollbar-thumb {
   background: #334155;
 }
 
-#fleetTableBody td, #fleetTableBody span { white-space: nowrap !important; word-break: keep-all !important; }
+
+/* Ensure fleet table badges never break into two lines */
+#fleetTableBody td,
+#fleetTableBody span {
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+}
+
+#fleetTableBody td:last-child span {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  white-space: nowrap !important;
+  min-width: 80px !important;
+  padding: 3px 10px !important;
+  line-height: 1.2 !important;
+  border-radius: 9999px !important;
+}
 
