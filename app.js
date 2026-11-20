@@ -1,5 +1,6 @@
 // SmartTransit Tamil Nadu — Next-Gen Transit & Fare Engine
 // Features: OSRM Road-Snapped Routing, Realistic 22 km/h Bus Pace, Live Weather + Night Surge Pricing,
+// Floating Transparent Assistive Ball + Live Gemini AI (Cloudflare Worker Proxy),
 // First-Time Login, Slide-Out App Drawer, SOS Safety Hub, Search History, Day/Night Theme Toggle
 
 let map, googleStreetLayer, googleHybridLayer;
@@ -25,6 +26,7 @@ let routeFetchSeq = 0;
 const REAL_BUS_SPEED_KMH = 22; // Realistic Chennai MTC city bus pace (~6.1 m/s)
 let currentActiveBusNumber = "54";
 let currentLang = "EN";
+let forceNightPreview = false;
 
 // Optional: Paste your Google Maps Platform Weather API key here.
 // Leave empty to automatically use free live Open-Meteo Chennai weather.
@@ -44,7 +46,7 @@ let liveWeatherState = {
 // =============================================================================
 function getNightFareState() {
   const hour = new Date().getHours();
-  const isNight = hour >= 22 || hour < 5; // 10:00 PM to 5:00 AM
+  const isNight = forceNightPreview || hour >= 22 || hour < 5; // 10:00 PM to 5:00 AM
   return {
     isNight,
     autoMult: isNight ? 1.5 : 1.0,    // Official TN Govt 1.5x night auto fare
@@ -53,6 +55,12 @@ function getNightFareState() {
     label: isNight ? "🌙 Night Fare (10 PM–5 AM)" : ""
   };
 }
+
+window.toggleNightPreview = function() {
+  forceNightPreview = !forceNightPreview;
+  renderWeatherBanner();
+  calculateAndDisplayFares(false);
+};
 
 async function fetchLiveWeatherAndSurge(lat = 13.0324, lng = 80.1818) {
   let tempC = 30;
@@ -151,7 +159,7 @@ function renderWeatherBanner() {
     headerPill.textContent = statusText;
   }
 
-  // 2. Also show a clean full-width strip inside the Fare Comparator card
+  // 2. Also show a clean full-width strip inside the Fare Comparator card with Night Preview toggle
   const busPriceEl = document.getElementById("busPrice");
   const fareCard = busPriceEl?.closest(".rounded-2xl")?.parentElement;
   if (fareCard) {
@@ -162,11 +170,16 @@ function renderWeatherBanner() {
       fareCard.prepend(banner);
     }
     banner.className = isSurging
-      ? "mb-2.5 px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-between bg-rose-500/15 text-rose-300 border border-rose-500/30"
-      : "mb-2.5 px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-between bg-emerald-500/10 text-emerald-400 border border-emerald-500/25";
+      ? "mb-2.5 px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 bg-rose-500/15 text-rose-300 border border-rose-500/30"
+      : "mb-2.5 px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/25";
     banner.innerHTML = `
       <span>${w.icon} Live Weather: <strong>${w.tempC}°C, ${w.condition}</strong></span>
-      <span class="font-mono text-[11px]">${bannerRightText}</span>
+      <div class="flex items-center gap-2">
+        <span class="font-mono text-[11px]">${bannerRightText}</span>
+        <button onclick="toggleNightPreview()" class="px-2 py-0.5 rounded-full text-[10px] font-bold border ${night.isNight ? 'bg-rose-500 text-white border-rose-400' : 'bg-slate-800 text-amber-300 border-slate-600'}">
+          ${night.isNight ? '☀️ Day View' : '🌙 Test Night'}
+        </button>
+      </div>
     `;
   }
 }
@@ -1551,11 +1564,12 @@ if (document.readyState === 'loading') {
   attachTransitClickHandlers();
 }
 setInterval(attachTransitClickHandlers, 1500);
+
 // =============================================================================
-// 13. FLOATING TRANSPARENT ASSISTIVE BALL & LIVE GEMINI AI COPILOT (FREE TIER)
+// 13. FLOATING TRANSPARENT ASSISTIVE BALL & LIVE GEMINI AI (CLOUDFLARE PROXY)
 // =============================================================================
 (function initSmartTransitAssistiveAI() {
-  const GEMINI_MODELS = ["gemini-3.5-flash-lite", "gemini-3.8-flash"];
+  const CLOUDFLARE_WORKER_URL = "https://smarttransit-ai.vallalar026.workers.dev";
   let chatHistory = [];
   let isPanelOpen = false;
   let isSending = false;
@@ -1563,7 +1577,6 @@ setInterval(attachTransitClickHandlers, 1500);
   function mountUI() {
     if (document.getElementById("stAiAssistiveBall")) return;
 
-    // 1. Inject Glassy Antigravity Styles
     const style = document.createElement("style");
     style.textContent = `
       #stAiAssistiveBall {
@@ -1637,14 +1650,12 @@ setInterval(attachTransitClickHandlers, 1500);
     `;
     document.head.appendChild(style);
 
-    // 2. Create Floating Assistive Ball
     const ball = document.createElement("div");
     ball.id = "stAiAssistiveBall";
     ball.title = "Drag anywhere • Tap to talk to SmartTransit AI";
     ball.innerHTML = `<div class="inner-ring">✨</div>`;
     document.body.appendChild(ball);
 
-    // 3. Create Transparent Glassy Chat Panel
     const panel = document.createElement("div");
     panel.id = "stAiChatPanel";
     panel.innerHTML = `
@@ -1656,18 +1667,7 @@ setInterval(attachTransitClickHandlers, 1500);
             <div style="font-size:10px;color:#93c5fd;">Gemini Live • EN / தமிழ்</div>
           </div>
         </div>
-        <div style="display:flex;align-items:center;gap:6px;">
-          <button id="stAiKeyToggleBtn" title="Set Gemini API Key" style="padding:4px 9px;border-radius:999px;font-size:10px;font-weight:700;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#e2e8f0;cursor:pointer;">🔑 Key</button>
-          <button id="stAiCloseBtn" title="Close" style="width:26px;height:26px;border-radius:999px;background:rgba(255,255,255,0.1);border:none;color:#e2e8f0;font-size:13px;cursor:pointer;">✕</button>
-        </div>
-      </div>
-
-      <div id="stAiKeyBox" style="display:none;padding:10px 12px;background:rgba(30,58,138,0.35);border-bottom:1px solid rgba(147,197,253,0.25);font-size:11px;">
-        <div style="margin-bottom:6px;color:#dbeafe;">Paste your free <strong>Google AI Studio</strong> Gemini API key (saved only on this device):</div>
-        <div style="display:flex;gap:6px;">
-          <input id="stAiKeyInput" type="password" placeholder="AIzaSy..." style="flex:1;padding:6px 10px;border-radius:10px;background:rgba(15,23,42,0.75);border:1px solid rgba(148,163,184,0.35);color:#fff;font-size:11px;outline:none;" />
-          <button id="stAiSaveKeyBtn" style="padding:6px 12px;border-radius:10px;background:#2563eb;color:#fff;font-weight:700;border:none;font-size:11px;cursor:pointer;">Save</button>
-        </div>
+        <button id="stAiCloseBtn" title="Close" style="width:26px;height:26px;border-radius:999px;background:rgba(255,255,255,0.1);border:none;color:#e2e8f0;font-size:13px;cursor:pointer;">✕</button>
       </div>
 
       <div id="stAiMessages" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;font-size:12px;line-height:1.45;">
@@ -1694,10 +1694,8 @@ setInterval(attachTransitClickHandlers, 1500);
     setupChatEvents(ball, panel);
   }
 
-  // Smooth Mouse + Touch Assistive-Ball Dragging
   function setupDragging(ball, panel) {
-    let dragging = false;
-    let moved = false;
+    let dragging = false, moved = false;
     let startX = 0, startY = 0, origLeft = 0, origTop = 0;
 
     ball.addEventListener("pointerdown", (e) => {
@@ -1720,11 +1718,8 @@ setInterval(attachTransitClickHandlers, 1500);
 
       const maxLeft = window.innerWidth - ball.offsetWidth - 8;
       const maxTop = window.innerHeight - ball.offsetHeight - 8;
-      const nextLeft = Math.max(8, Math.min(maxLeft, origLeft + dx));
-      const nextTop = Math.max(8, Math.min(maxTop, origTop + dy));
-
-      ball.style.left = `${nextLeft}px`;
-      ball.style.top = `${nextTop}px`;
+      ball.style.left = `${Math.max(8, Math.min(maxLeft, origLeft + dx))}px`;
+      ball.style.top = `${Math.max(8, Math.min(maxTop, origTop + dy))}px`;
       ball.style.right = "auto";
       ball.style.bottom = "auto";
     });
@@ -1750,38 +1745,11 @@ setInterval(attachTransitClickHandlers, 1500);
     isPanelOpen = !isPanelOpen;
     panel.classList.toggle("open", isPanelOpen);
     ball.classList.toggle("active", isPanelOpen);
-
-    // Show API key prompt automatically if not set yet
-    const keyBox = document.getElementById("stAiKeyBox");
-    if (isPanelOpen && !localStorage.getItem("st_gemini_api_key")) {
-      keyBox.style.display = "block";
-    }
-    if (isPanelOpen) {
-      setTimeout(() => document.getElementById("stAiInput")?.focus(), 150);
-    }
+    if (isPanelOpen) setTimeout(() => document.getElementById("stAiInput")?.focus(), 150);
   }
 
   function setupChatEvents(ball, panel) {
-    const keyBox = document.getElementById("stAiKeyBox");
-    const keyInput = document.getElementById("stAiKeyInput");
-
     document.getElementById("stAiCloseBtn").onclick = () => togglePanel(ball, panel);
-    document.getElementById("stAiKeyToggleBtn").onclick = () => {
-      keyBox.style.display = keyBox.style.display === "none" ? "block" : "none";
-      keyInput.value = localStorage.getItem("st_gemini_api_key") || "";
-    };
-
-    document.getElementById("stAiSaveKeyBtn").onclick = () => {
-      const val = keyInput.value.trim();
-      if (!val) {
-        localStorage.removeItem("st_gemini_api_key");
-        appendMessage("bot", "API key cleared.");
-      } else {
-        localStorage.setItem("st_gemini_api_key", val);
-        keyBox.style.display = "none";
-        appendMessage("bot", "✅ Gemini API key saved locally! Ask me anything about your trip.");
-      }
-    };
 
     document.querySelectorAll(".st-ai-chip").forEach(chip => {
       chip.onclick = () => sendUserPrompt(chip.getAttribute("data-q"));
@@ -1796,7 +1764,6 @@ setInterval(attachTransitClickHandlers, 1500);
       sendUserPrompt(text);
     };
 
-    // Voice Input (Web Speech API)
     const micBtn = document.getElementById("stAiMicBtn");
     const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRec) {
@@ -1820,12 +1787,7 @@ setInterval(attachTransitClickHandlers, 1500);
         document.getElementById("stAiInput").value = transcript;
         sendUserPrompt(transcript);
       };
-      rec.onend = () => {
-        listening = false;
-        micBtn.style.background = "rgba(255,255,255,0.1)";
-        micBtn.textContent = "🎙️";
-      };
-      rec.onerror = () => {
+      rec.onend = rec.onerror = () => {
         listening = false;
         micBtn.style.background = "rgba(255,255,255,0.1)";
         micBtn.textContent = "🎙️";
@@ -1879,13 +1841,6 @@ LIVE APP STATE:
 
   async function sendUserPrompt(userText) {
     if (isSending) return;
-    const apiKey = localStorage.getItem("st_gemini_api_key");
-    if (!apiKey) {
-      document.getElementById("stAiKeyBox").style.display = "block";
-      appendMessage("bot", "Please paste your free **Google AI Studio** API key above first (click 🔑 Key).");
-      return;
-    }
-
     appendMessage("user", userText);
     chatHistory.push({ role: "user", parts: [{ text: userText }] });
     if (chatHistory.length > 10) chatHistory = chatHistory.slice(-10);
@@ -1893,40 +1848,27 @@ LIVE APP STATE:
     isSending = true;
     appendMessage("bot", "Thinking...", true);
 
-    let replyText = null;
-    let lastErr = "";
+    try {
+      const res = await fetch(CLOUDFLARE_WORKER_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: getLiveTransitContext() }] },
+          contents: chatHistory
+        })
+      });
+      const data = await res.json();
+      document.getElementById("stAiTypingIndicator")?.remove();
 
-    for (const model of GEMINI_MODELS) {
-      try {
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-goog-api-key": apiKey
-          },
-          body: JSON.stringify({
-            systemInstruction: { parts: [{ text: getLiveTransitContext() }] },
-            contents: chatHistory
-          })
-        });
-        const data = await res.json();
-        if (res.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
-          replyText = data.candidates[0].content.parts[0].text;
-          break;
-        }
-        lastErr = data.error?.message || `HTTP ${res.status}`;
-      } catch (err) {
-        lastErr = err.message;
+      if (res.ok && data.reply) {
+        chatHistory.push({ role: "model", parts: [{ text: data.reply }] });
+        appendMessage("bot", data.reply);
+      } else {
+        appendMessage("bot", `⚠️ AI Error: ${data.error || "Check your Cloudflare Worker URL & secret."}`);
       }
-    }
-
-    document.getElementById("stAiTypingIndicator")?.remove();
-
-    if (replyText) {
-      chatHistory.push({ role: "model", parts: [{ text: replyText }] });
-      appendMessage("bot", replyText);
-    } else {
-      appendMessage("bot", `⚠️ Could not reach Gemini (${lastErr}). Check your API key in 🔑 Key.`);
+    } catch (err) {
+      document.getElementById("stAiTypingIndicator")?.remove();
+      appendMessage("bot", `⚠️ Network error: ${err.message}`);
     }
     isSending = false;
   }
