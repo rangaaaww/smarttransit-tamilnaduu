@@ -1,5 +1,5 @@
 // SmartTransit Tamil Nadu — Next-Gen Transit & Fare Engine
-// Features: OSRM Road-Snapped Routing, Realistic 22 km/h Bus Pace, Live Weather Surge Pricing,
+// Features: OSRM Road-Snapped Routing, Realistic 22 km/h Bus Pace, Live Weather + Night Surge Pricing,
 // First-Time Login, Slide-Out App Drawer, SOS Safety Hub, Search History, Day/Night Theme Toggle
 
 let map, googleStreetLayer, googleHybridLayer;
@@ -40,8 +40,20 @@ let liveWeatherState = {
 };
 
 // =============================================================================
-// 2. LIVE WEATHER & DYNAMIC SURGE PRICING ENGINE
+// 2. LIVE WEATHER & AUTOMATIC NIGHT FARE ENGINE (10 PM – 5 AM)
 // =============================================================================
+function getNightFareState() {
+  const hour = new Date().getHours();
+  const isNight = hour >= 22 || hour < 5; // 10:00 PM to 5:00 AM
+  return {
+    isNight,
+    autoMult: isNight ? 1.5 : 1.0,    // Official TN Govt 1.5x night auto fare
+    rapidoMult: isNight ? 1.25 : 1.0, // Rapido night surcharge
+    uberMult: isNight ? 1.35 : 1.0,   // Cab night surcharge
+    label: isNight ? "🌙 Night Fare (10 PM–5 AM)" : ""
+  };
+}
+
 async function fetchLiveWeatherAndSurge(lat = 13.0324, lng = 80.1818) {
   let tempC = 30;
   let precipProb = 0;
@@ -113,7 +125,16 @@ async function fetchLiveWeatherAndSurge(lat = 13.0324, lng = 80.1818) {
 
 function renderWeatherBanner() {
   const w = liveWeatherState;
-  const isSurging = w.surgeMultiplier > 1.0;
+  const night = getNightFareState();
+  const isSurging = w.surgeMultiplier > 1.0 || night.isNight;
+
+  const statusText = night.isNight
+    ? `${w.icon} ${w.tempC}°C • 🌙 Night Fare Active`
+    : `${w.icon} ${w.tempC}°C ${w.condition} • ${w.surgeMultiplier}x`;
+
+  const bannerRightText = night.isNight
+    ? (w.surgeMultiplier > 1.0 ? `🌙 Night + ${w.surgeLabel}` : `🌙 Night Fare (Auto 1.5x)`)
+    : w.surgeLabel;
 
   // 1. Show prominently in the Top Header (right next to SOS)
   const sosBtn = document.getElementById("headerSosBtn");
@@ -127,7 +148,7 @@ function renderWeatherBanner() {
     headerPill.className = isSurging
       ? "hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40"
       : "hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/35";
-    headerPill.textContent = `${w.icon} ${w.tempC}°C ${w.condition} • ${w.surgeMultiplier}x`;
+    headerPill.textContent = statusText;
   }
 
   // 2. Also show a clean full-width strip inside the Fare Comparator card
@@ -144,8 +165,8 @@ function renderWeatherBanner() {
       ? "mb-2.5 px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-between bg-rose-500/15 text-rose-300 border border-rose-500/30"
       : "mb-2.5 px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-between bg-emerald-500/10 text-emerald-400 border border-emerald-500/25";
     banner.innerHTML = `
-      <span>${w.icon} Live Chennai Weather: <strong>${w.tempC}°C, ${w.condition}</strong></span>
-      <span class="font-mono text-[11px]">${w.surgeLabel}</span>
+      <span>${w.icon} Live Weather: <strong>${w.tempC}°C, ${w.condition}</strong></span>
+      <span class="font-mono text-[11px]">${bannerRightText}</span>
     `;
   }
 }
@@ -934,7 +955,7 @@ function switchLayer(type) {
 }
 
 // =============================================================================
-// 11. DISTANCE, ROUTE RESOLVER & WEATHER-AWARE FARE CALCULATOR
+// 11. DISTANCE, ROUTE RESOLVER & WEATHER + NIGHT FARE CALCULATOR
 // =============================================================================
 function haversineKm(lat1, lon1, lat2, lon2) {
   const R = 6371;
@@ -1038,7 +1059,7 @@ function calculateAndDisplayFares(shouldRecordHistory = false) {
   let primaryBusFare = 0;
   let busMinutes = 0;
 
-  // MTC Official Bus Fare (Fixed Govt Tariff — Zero Weather Surge!)
+  // MTC Official Bus Fare (Fixed Govt Tariff — Zero Weather/Night App Surge!)
   if (!isIntercity) {
     const mtc = getOfficialMtcFareByDistance(distance, pass);
     primaryBusFare = mtc.ord;
@@ -1065,21 +1086,33 @@ function calculateAndDisplayFares(shouldRecordHistory = false) {
     document.getElementById("busSlabDetail").textContent = `Exp: ₹${expressFare} | Ultra Dlx: ₹${ultraDeluxeFare}`;
   }
 
-  // Dynamic Weather Surge for Ride-Hailing (Rapido, Auto, Uber)
-  const surge = liveWeatherState.surgeMultiplier || 1.0;
-  const surgeTag = surge > 1.0 ? ` • ${liveWeatherState.icon} ${surge}x Weather Surge` : "";
+  // Combined Weather Surge + Automatic Night Fare (10 PM – 5 AM)
+  const weatherSurge = liveWeatherState.surgeMultiplier || 1.0;
+  const night = getNightFareState();
+
+  const rapidoMult = Number((weatherSurge * night.rapidoMult).toFixed(2));
+  const autoMult   = Number((weatherSurge * night.autoMult).toFixed(2));
+  const uberMult   = Number((weatherSurge * night.uberMult).toFixed(2));
+
+  const tagFor = (m) => {
+    const parts = [];
+    if (night.isNight) parts.push("🌙 Night");
+    if (weatherSurge > 1.0) parts.push(`${liveWeatherState.icon} Rain`);
+    return parts.length ? ` • ${parts.join(" + ")} (${m}x)` : "";
+  };
 
   if (!isIntercity) {
-    const rapidoFare = Math.round((25 + (distance * 11.0)) * surge);
-    const rapidoMins = Math.round((distance / (surge > 1.2 ? 26 : 36)) * 60) + 2;
+    const rapidoFare = Math.round((25 + (distance * 11.0)) * rapidoMult);
+    const rapidoMins = Math.round((distance / (weatherSurge > 1.2 ? 26 : 36)) * 60) + 2;
     document.getElementById("rapidoPrice").textContent = `₹ ${rapidoFare}`;
-    document.getElementById("rapidoEta").textContent = `Drop in ~${rapidoMins} mins${surgeTag}`;
-    document.getElementById("rapidoBadge").textContent = surge > 1.0 ? `${surge}x Rain Surge` : "Fastest Drop";
+    document.getElementById("rapidoEta").textContent = `Drop in ~${rapidoMins} mins${tagFor(rapidoMult)}`;
+    document.getElementById("rapidoBadge").textContent = rapidoMult > 1.0 ? `${rapidoMult}x Surge` : "Fastest Drop";
 
-    const autoFare = Math.max(50, Math.round((50 + Math.max(0, distance - 1.8) * 15.0) * surge));
-    const autoMins = Math.round((distance / (surge > 1.2 ? 20 : 28)) * 60) + 3;
+    // Official Oct 2026 TN Auto Tariff: ₹50 for first 1.8 km + ₹25/km (1.5x at night)
+    const autoFare = Math.max(50, Math.round((50 + Math.max(0, distance - 1.8) * 25.0) * autoMult));
+    const autoMins = Math.round((distance / (weatherSurge > 1.2 ? 20 : 28)) * 60) + 3;
     document.getElementById("autoPrice").textContent = `₹ ${autoFare}`;
-    document.getElementById("autoEta").textContent = `Drop in ~${autoMins} mins${surgeTag}`;
+    document.getElementById("autoEta").textContent = `Drop in ~${autoMins} mins${tagFor(autoMult)}`;
   } else {
     document.getElementById("rapidoPrice").textContent = "N/A";
     document.getElementById("rapidoEta").textContent = "City limits only (<45 km)";
@@ -1090,22 +1123,23 @@ function calculateAndDisplayFares(shouldRecordHistory = false) {
 
   let uberFare = 0;
   if (!isIntercity) {
-    uberFare = Math.round((75 + (distance * 18.0)) * surge);
-    const uberMins = Math.round((distance / (surge > 1.2 ? 22 : 30)) * 60) + 4;
+    uberFare = Math.round((75 + (distance * 18.0)) * uberMult);
+    const uberMins = Math.round((distance / (weatherSurge > 1.2 ? 22 : 30)) * 60) + 4;
     document.getElementById("uberPrice").textContent = `₹ ${uberFare}`;
-    document.getElementById("uberEta").textContent = `Drop in ~${uberMins} mins • 4-Seat AC Cab${surgeTag}`;
+    document.getElementById("uberEta").textContent = `Drop in ~${uberMins} mins • 4-Seat AC Cab${tagFor(uberMult)}`;
   } else {
-    uberFare = Math.round((450 + (distance * 14.5)) * surge);
+    uberFare = Math.round((450 + (distance * 14.5)) * uberMult);
     const hrs = (distance / 65).toFixed(1);
     document.getElementById("uberPrice").textContent = `₹ ${uberFare}`;
-    document.getElementById("uberEta").textContent = `Drop in ~${hrs} hrs • Intercity Outstation Cab${surgeTag}`;
+    document.getElementById("uberEta").textContent = `Drop in ~${hrs} hrs • Intercity Outstation Cab${tagFor(uberMult)}`;
   }
 
   const saved = Math.max(0, uberFare - primaryBusFare);
   const pct = Math.round((saved / uberFare) * 100);
   currentActiveBusNumber = routeDetails.buses[0]?.num || "54";
+  const surgeContext = night.isNight ? " (Night Surge Active)" : (weatherSurge > 1.0 ? ` during ${liveWeatherState.condition}` : "");
   document.getElementById("recommendationText").innerHTML =
-    `Board <strong>Bus #${currentActiveBusNumber}</strong> to pay just <strong>₹${primaryBusFare}</strong> (Official TN Govt tariff) and save <strong>₹${saved} (${pct}%)</strong> compared to an AC Cab${surge > 1.0 ? ` during ${liveWeatherState.condition}` : ""}.`;
+    `Board <strong>Bus #${currentActiveBusNumber}</strong> to pay just <strong>₹${primaryBusFare}</strong> (Official TN Govt tariff) and save <strong>₹${saved} (${pct}%)</strong> compared to an AC Cab${surgeContext}.`;
 
   if (shouldRecordHistory) {
     recordSearchToHistory(origin, dest, distance, `₹${primaryBusFare}`);
