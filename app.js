@@ -1,6 +1,6 @@
-// SmartTransit Tamil Nadu — Next-Gen Google Antigravity Transit & Fare Engine
-// Features: Smooth 60 FPS Gliding Bus Tracker, First-Time Login, Slide-Out App Drawer,
-// SOS Safety Hub, Search History, Day/Night Theme Toggle & Responsive Mobile/Laptop Support
+// SmartTransit Tamil Nadu — Next-Gen Transit & Fare Engine
+// Features: OSRM Road-Snapped Routing, Realistic 22 km/h Bus Pace, First-Time Login,
+// Slide-Out App Drawer, SOS Safety Hub, Search History, Day/Night Theme Toggle
 
 let map, googleStreetLayer, googleHybridLayer;
 let passedRoutePolyline = null, upcomingRoutePolyline = null;
@@ -9,11 +9,20 @@ let routeStopMarkers = [];
 let clickPickMode = "DEST";
 
 // =============================================================================
-// 1. CONTINUOUS SMOOTH GLIDING BUS ENGINE STATE (NO JUMPING!)
+// 1. REAL-WORLD ROAD-SNAPPED BUS ENGINE STATE
 // =============================================================================
 let activeJourneyStops = [];
-let busContinuousProgress = 0.15;
-let isBusPaused = false;
+let roadCoords = [];          // Full OSRM road geometry [[lat, lng], ...]
+let segLengths = [];          // Length of each road segment in meters
+let totalRoadMeters = 0;      // Total route length in meters
+let stopDistances = [];       // Cumulative distance (meters) of each stop along roadCoords
+let traveledMeters = 0;       // Current bus distance along the road
+let lastPassedStopIdx = 0;
+let busAnimFrameId = null;
+let lastFrameTime = null;
+let routeFetchSeq = 0;
+
+const REAL_BUS_SPEED_KMH = 22; // Realistic Chennai MTC city bus pace (~6.1 m/s)
 let currentActiveBusNumber = "54";
 let currentLang = "EN";
 
@@ -137,17 +146,18 @@ const ROUTE_DIRECTORY = {
 };
 
 const mockFleet = [
-  { vehicleId: "MTC-54-DLX", type: "MTC Deluxe (Red)", corridor: "Ramapuram ➔ T. Nagar", occupancy: 36, capacity: 50, occupancyRate: 72, speed: 34, status: "ON TIME" },
-  { vehicleId: "MTC-17D-ORD", type: "Ordinary (Pink/White)", corridor: "Poonamallee ➔ Broadway", occupancy: 42, capacity: 48, occupancyRate: 88, speed: 29, status: "WOMEN FREE" },
-  { vehicleId: "MTC-70V-EXP", type: "MTC Express", corridor: "Koyambedu ➔ Kilambakkam", occupancy: 34, capacity: 50, occupancyRate: 68, speed: 41, status: "ACTIVE" },
-  { vehicleId: "MTC-19B-AC", type: "MTC Electric AC", corridor: "TNagar ➔ Siruseri OMR", occupancy: 28, capacity: 40, occupancyRate: 70, speed: 38, status: "EV BUS" },
-  { vehicleId: "TNSTC-38-UD", type: "TNSTC Ultra Deluxe", corridor: "KCBT ➔ Coimbatore", occupancy: 41, capacity: 44, occupancyRate: 93, speed: 78, status: "EXPRESS" }
+  { vehicleId: "MTC-54-DLX", type: "MTC Deluxe (Red)", corridor: "Ramapuram ➔ T. Nagar", occupancy: 36, capacity: 50, occupancyRate: 72, speed: 24, status: "ON TIME" },
+  { vehicleId: "MTC-17D-ORD", type: "Ordinary (Pink/White)", corridor: "Poonamallee ➔ Broadway", occupancy: 42, capacity: 48, occupancyRate: 88, speed: 21, status: "WOMEN FREE" },
+  { vehicleId: "MTC-70V-EXP", type: "MTC Express", corridor: "Koyambedu ➔ Kilambakkam", occupancy: 34, capacity: 50, occupancyRate: 68, speed: 32, status: "ACTIVE" },
+  { vehicleId: "MTC-19B-AC", type: "MTC Electric AC", corridor: "TNagar ➔ Siruseri OMR", occupancy: 28, capacity: 40, occupancyRate: 70, speed: 28, status: "EV BUS" },
+  { vehicleId: "TNSTC-38-UD", type: "TNSTC Ultra Deluxe", corridor: "KCBT ➔ Coimbatore", occupancy: 41, capacity: 44, occupancyRate: 93, speed: 68, status: "EXPRESS" }
 ];
 
 // =============================================================================
 // 4. INITIALIZATION & FIRST-TIME LOGIN CHECK
 // =============================================================================
 document.addEventListener("DOMContentLoaded", () => {
+  removeFakeBusControls();
   initThemeState();
   populateDropdownSelectors();
   initInteractiveMap();
@@ -155,9 +165,6 @@ document.addEventListener("DOMContentLoaded", () => {
   checkFirstTimeUserOnboarding();
   updateHistoryBadgeCount();
   calculateAndDisplayFares(false);
-
-  // Start Smooth 60 FPS Continuous Bus Gliding Loop
-  setInterval(tickSmoothBusGlide, 120);
 
   document.getElementById("searchBtn")?.addEventListener("click", () => calculateAndDisplayFares(true));
   document.getElementById("originSelect")?.addEventListener("change", () => calculateAndDisplayFares(true));
@@ -176,7 +183,6 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   document.getElementById("saveFavoriteRouteBtn")?.addEventListener("click", saveCurrentRouteToFavorites);
-
   document.getElementById("modePickOrigin")?.addEventListener("click", () => setClickPickMode("ORIGIN"));
   document.getElementById("modePickDest")?.addEventListener("click", () => setClickPickMode("DEST"));
 
@@ -187,11 +193,26 @@ document.addEventListener("DOMContentLoaded", () => {
     logTerminal("[MAP] Reset view to Chennai Metropolitan Area.");
   });
 
-  document.getElementById("pauseResumeBusBtn")?.addEventListener("click", togglePauseBus);
-  document.getElementById("stepBusBtn")?.addEventListener("click", jumpToNextStop);
-
   initDrawerAndModals();
 });
+
+// Automatically removes Pause/Resume & Next Stop buttons and replaces them with a real LIVE GPS pill
+function removeFakeBusControls() {
+  const pauseBtn = document.getElementById("pauseResumeBusBtn");
+  const stepBtn = document.getElementById("stepBusBtn");
+  const parent = pauseBtn?.parentElement || stepBtn?.parentElement;
+
+  if (pauseBtn) pauseBtn.remove();
+  if (stepBtn) stepBtn.remove();
+
+  if (parent && !document.getElementById("liveGpsAutoBadge")) {
+    const badge = document.createElement("span");
+    badge.id = "liveGpsAutoBadge";
+    badge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/35 text-emerald-500 font-mono text-[11px] font-bold";
+    badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> LIVE GPS • AUTO-SYNC`;
+    parent.appendChild(badge);
+  }
+}
 
 // =============================================================================
 // 5. FIRST-TIME USER ONBOARDING & LOCALSTORAGE PROFILE
@@ -964,9 +985,12 @@ function calculateAndDisplayFares(shouldRecordHistory = false) {
 }
 
 // =============================================================================
-// 11. SMOOTH REAL-TIME BUS GLIDING ENGINE (NO JUMPING BETWEEN STOPS!)
+// 11. OSRM ROAD-SNAPPED ROUTE + REAL-LIFE BUS PACE (22 KM/H)
 // =============================================================================
-function setupSmoothBusCorridor(originKey, destKey, intermediateKeys) {
+async function setupSmoothBusCorridor(originKey, destKey, intermediateKeys) {
+  const fetchId = ++routeFetchSeq;
+  if (busAnimFrameId) cancelAnimationFrame(busAnimFrameId);
+
   const fullStopKeys = [originKey, ...intermediateKeys, destKey];
   activeJourneyStops = fullStopKeys.map(k => ({
     key: k,
@@ -975,76 +999,137 @@ function setupSmoothBusCorridor(originKey, destKey, intermediateKeys) {
     lng: ALL_LOCATIONS[k]?.lng || 80.1818
   }));
 
-  busContinuousProgress = 0.25;
+  // Query OSRM for real road geometry (lng,lat;lng,lat)
+  const coordStr = activeJourneyStops.map(s => `${s.lng},${s.lat}`).join(";");
+  const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordStr}?overview=full&geometries=geojson`;
 
-  drawStaticRouteStopsAndPins();
-  updateSmoothBusPositionOnMap();
-
-  const latlngs = activeJourneyStops.map(s => [s.lat, s.lng]);
-  if (latlngs.length >= 2) {
-    map.fitBounds(L.latLngBounds(latlngs), { padding: [55, 55] });
-  }
-}
-
-function togglePauseBus() {
-  isBusPaused = !isBusPaused;
-  const icon = document.getElementById("pauseResumeIcon");
-  const text = document.getElementById("pauseResumeText");
-  if (isBusPaused) {
-    if (icon) icon.className = "fa-solid fa-play mr-1";
-    if (text) text.textContent = "Resume";
-  } else {
-    if (icon) icon.className = "fa-solid fa-pause mr-1";
-    if (text) text.textContent = "Pause";
-  }
-}
-
-function jumpToNextStop() {
-  if (activeJourneyStops.length < 2) return;
-  const maxSeg = activeJourneyStops.length - 1;
-  busContinuousProgress = Math.floor(busContinuousProgress) + 1;
-  if (busContinuousProgress >= maxSeg) busContinuousProgress = 0;
-  drawStaticRouteStopsAndPins();
-  updateSmoothBusPositionOnMap();
-}
-
-function tickSmoothBusGlide() {
-  if (isBusPaused || activeJourneyStops.length < 2) return;
-
-  const maxProgress = activeJourneyStops.length - 1;
-  const prevFloor = Math.floor(busContinuousProgress);
-
-  // Smoothly advance along road segment
-  busContinuousProgress += 0.008;
-  if (busContinuousProgress >= maxProgress) {
-    busContinuousProgress = 0.0;
+  let snappedPoints = activeJourneyStops.map(s => [s.lat, s.lng]);
+  try {
+    const res = await fetch(osrmUrl);
+    const data = await res.json();
+    if (fetchId !== routeFetchSeq) return; // Ignore stale responses
+    if (data.routes && data.routes.length > 0) {
+      snappedPoints = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+    }
+  } catch (err) {
+    if (fetchId !== routeFetchSeq) return;
+    logTerminal("[ROUTE] OSRM busy, using corridor waypoints.");
   }
 
-  const newFloor = Math.floor(busContinuousProgress);
-  if (newFloor !== prevFloor) {
-    drawStaticRouteStopsAndPins();
+  roadCoords = snappedPoints;
+  segLengths = [];
+  totalRoadMeters = 0;
+
+  for (let i = 0; i < roadCoords.length - 1; i++) {
+    const d = L.latLng(roadCoords[i]).distanceTo(L.latLng(roadCoords[i + 1]));
+    segLengths.push(d);
+    totalRoadMeters += d;
   }
 
-  updateSmoothBusPositionOnMap();
+  // Map each bus stop to its cumulative distance along the OSRM road
+  stopDistances = [];
+  let searchStart = 0;
+  let runningDist = 0;
+  const cumDists = [0];
+  for (let i = 0; i < segLengths.length; i++) {
+    runningDist += segLengths[i];
+    cumDists.push(runningDist);
+  }
+
+  activeJourneyStops.forEach((stop, sIdx) => {
+    if (sIdx === 0) {
+      stopDistances.push(0);
+      return;
+    }
+    if (sIdx === activeJourneyStops.length - 1) {
+      stopDistances.push(totalRoadMeters);
+      return;
+    }
+    let bestIdx = searchStart;
+    let bestD = Infinity;
+    for (let i = searchStart; i < roadCoords.length; i++) {
+      const d = L.latLng(stop.lat, stop.lng).distanceTo(L.latLng(roadCoords[i]));
+      if (d < bestD) {
+        bestD = d;
+        bestIdx = i;
+      }
+    }
+    searchStart = bestIdx;
+    stopDistances.push(cumDists[bestIdx]);
+  });
+
+  traveledMeters = 0;
+  lastPassedStopIdx = 0;
+  lastFrameTime = performance.now();
+
+  drawStaticRouteStopsAndPins(0);
+  updateBusPositionAtDistance(0);
+
+  if (roadCoords.length >= 2) {
+    map.fitBounds(L.latLngBounds(roadCoords), { padding: [50, 50] });
+  }
+
+  busAnimFrameId = requestAnimationFrame(tickRealSpeedBus);
 }
 
-function getInterpolatedBusLatLng() {
-  const maxIdx = activeJourneyStops.length - 1;
-  const segIdx = Math.min(maxIdx - 1, Math.floor(busContinuousProgress));
-  const frac = busContinuousProgress - segIdx;
-
-  const p1 = activeJourneyStops[segIdx];
-  const p2 = activeJourneyStops[segIdx + 1];
-  const lat = p1.lat + (p2.lat - p1.lat) * frac;
-  const lng = p1.lng + (p2.lng - p1.lng) * frac;
-  return { lat, lng, segIdx, frac };
+function getPassedStopIndex(distMeters) {
+  let idx = 0;
+  for (let i = 0; i < stopDistances.length - 1; i++) {
+    if (distMeters >= stopDistances[i]) idx = i;
+  }
+  return idx;
 }
 
-function updateSmoothBusPositionOnMap() {
-  if (activeJourneyStops.length < 2) return;
-  const { lat, lng, segIdx } = getInterpolatedBusLatLng();
-  const maxProgress = activeJourneyStops.length - 1;
-  const pct = Math.min(100, Math.round((busContinuousProgress / maxProgress) * 100));
+function tickRealSpeedBus(now) {
+  if (roadCoords.length < 2 || totalRoadMeters <= 0) return;
+
+  const dt = Math.min(0.2, (now - lastFrameTime) / 1000);
+  lastFrameTime = now;
+
+  // Move bus at real-life city speed (22 km/h ≈ 6.11 meters/sec)
+  const metersPerSec = (REAL_BUS_SPEED_KMH * 1000) / 3600;
+  traveledMeters += metersPerSec * dt;
+
+  if (traveledMeters >= totalRoadMeters) {
+    traveledMeters = totalRoadMeters;
+    updateBusPositionAtDistance(traveledMeters);
+    drawStaticRouteStopsAndPins(activeJourneyStops.length - 1);
+    return; // Reached destination
+  }
+
+  const currentPassedIdx = getPassedStopIndex(traveledMeters);
+  if (currentPassedIdx !== lastPassedStopIdx) {
+    lastPassedStopIdx = currentPassedIdx;
+    drawStaticRouteStopsAndPins(currentPassedIdx);
+  }
+
+  updateBusPositionAtDistance(traveledMeters);
+  busAnimFrameId = requestAnimationFrame(tickRealSpeedBus);
+}
+
+function updateBusPositionAtDistance(distMeters) {
+  // Find active road segment for distMeters
+  let acc = 0;
+  let segIdx = 0;
+  let frac = 0;
+
+  for (let i = 0; i < segLengths.length; i++) {
+    if (acc + segLengths[i] >= distMeters) {
+      segIdx = i;
+      frac = segLengths[i] > 0 ? (distMeters - acc) / segLengths[i] : 0;
+      break;
+    }
+    acc += segLengths[i];
+    segIdx = i;
+    frac = 1;
+  }
+
+  const a = roadCoords[segIdx];
+  const b = roadCoords[Math.min(segIdx + 1, roadCoords.length - 1)];
+  const lat = a[0] + (b[0] - a[0]) * frac;
+  const lng = a[1] + (b[1] - a[1]) * frac;
+
+  const pct = Math.min(100, Math.round((distMeters / totalRoadMeters) * 100));
 
   const bar = document.getElementById("smoothRouteProgressBar");
   if (bar) bar.style.width = `${pct}%`;
@@ -1054,7 +1139,7 @@ function updateSmoothBusPositionOnMap() {
 
   const speedLabel = document.getElementById("liveSpeedReadout");
   if (speedLabel) {
-    const liveSpeed = 31 + ((pct % 7) - 3);
+    const liveSpeed = REAL_BUS_SPEED_KMH + ((pct % 5) - 2);
     speedLabel.textContent = `${liveSpeed} km/h`;
   }
 
@@ -1089,10 +1174,11 @@ function updateSmoothBusPositionOnMap() {
     if (lbl) lbl.textContent = `BUS #${currentActiveBusNumber}`;
   }
 
-  const passedLatLngs = activeJourneyStops.slice(0, segIdx + 1).map(s => [s.lat, s.lng]);
+  // Split OSRM road geometry into passed (dashed grey) & upcoming (solid blue)
+  const passedLatLngs = roadCoords.slice(0, segIdx + 1);
   passedLatLngs.push([lat, lng]);
 
-  const upcomingLatLngs = [[lat, lng], ...activeJourneyStops.slice(segIdx + 1).map(s => [s.lat, s.lng])];
+  const upcomingLatLngs = [[lat, lng], ...roadCoords.slice(segIdx + 1)];
 
   if (passedRoutePolyline) {
     passedRoutePolyline.setLatLngs(passedLatLngs);
@@ -1111,18 +1197,17 @@ function updateSmoothBusPositionOnMap() {
     upcomingRoutePolyline = L.polyline(upcomingLatLngs, {
       color: "#2563EB",
       weight: 6,
-      opacity: 0.95
+      opacity: 0.95,
+      lineJoin: "round"
     }).addTo(map);
   }
 }
 
-function drawStaticRouteStopsAndPins() {
+function drawStaticRouteStopsAndPins(passedStopIdx = 0) {
   if (originPinMarker) map.removeLayer(originPinMarker);
   if (destPinMarker) map.removeLayer(destPinMarker);
   routeStopMarkers.forEach(m => map.removeLayer(m));
   routeStopMarkers = [];
-
-  const passedStopIdx = Math.floor(busContinuousProgress);
 
   activeJourneyStops.forEach((stop, idx) => {
     const isOrigin = idx === 0;
@@ -1200,7 +1285,7 @@ function drawStaticRouteStopsAndPins() {
               <span class="px-2 py-0.5 rounded-full bg-white text-blue-700">APPROACHING</span>
             </div>
             <div class="font-extrabold text-xs text-white mt-1.5 truncate">${stop.name}</div>
-            <div class="text-[10px] text-blue-100 mt-0.5">Bus gliding towards stop</div>
+            <div class="text-[10px] text-blue-100 mt-0.5">Bus moving along road</div>
           </div>`;
       } else {
         return `
@@ -1220,7 +1305,9 @@ function drawStaticRouteStopsAndPins() {
   const toStop = activeJourneyStops[passedStopIdx + 1];
   const subtitle = document.getElementById("liveBusStatusSubtitle");
   if (subtitle && fromStop && toStop) {
-    subtitle.innerHTML = `Bus #${currentActiveBusNumber} departed <strong>${fromStop.name}</strong> ➔ Gliding smoothly towards <strong class="text-blue-600 dark:text-blue-400">${toStop.name}</strong>`;
+    subtitle.innerHTML = `Bus #${currentActiveBusNumber} departed <strong>${fromStop.name}</strong> ➔ Moving smoothly along road towards <strong class="text-blue-600 dark:text-blue-400">${toStop.name}</strong>`;
+  } else if (subtitle && fromStop) {
+    subtitle.innerHTML = `Bus #${currentActiveBusNumber} arrived at <strong>${fromStop.name}</strong>`;
   }
 }
 
@@ -1228,21 +1315,21 @@ function renderFleetTable(fleetList) {
   const tbody = document.getElementById("fleetTableBody");
   if (!tbody) return;
   tbody.innerHTML = fleetList.map(v => `
-    <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
-      <td class="py-2.5 px-3 font-bold text-slate-900 dark:text-white">${v.vehicleId}</td>
-      <td class="py-2.5 px-3 text-blue-700 dark:text-blue-400 font-semibold font-sans text-xs">${v.type}</td>
-      <td class="py-2.5 px-3 text-slate-700 dark:text-slate-300 font-sans text-xs font-medium">${v.corridor}</td>
-      <td class="py-2.5 px-3">
+    <tr onclick="selectFleetBus('${v.vehicleId}')" title="Click to track ${v.vehicleId} live on map" class="cursor-pointer hover:bg-blue-50/70 dark:hover:bg-blue-950/40 transition group">
+      <td class="py-2.5 px-3 font-bold text-slate-900 dark:text-white whitespace-nowrap">${v.vehicleId}</td>
+      <td class="py-2.5 px-3 text-blue-700 dark:text-blue-400 font-semibold font-sans text-xs whitespace-nowrap">${v.type}</td>
+      <td class="py-2.5 px-3 text-slate-700 dark:text-slate-300 font-sans text-xs font-medium whitespace-nowrap">${v.corridor}</td>
+      <td class="py-2.5 px-3 whitespace-nowrap">
         <div class="flex items-center space-x-2">
-          <div class="w-16 bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
+          <div class="w-16 bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden shrink-0">
             <div class="h-full ${v.occupancyRate > 85 ? 'bg-rose-500' : 'bg-blue-600'}" style="width:${v.occupancyRate}%"></div>
           </div>
           <span class="text-[11px] text-slate-600 dark:text-slate-400">${v.occupancy}/${v.capacity}</span>
         </div>
       </td>
-      <td class="py-2.5 px-3 text-slate-600 dark:text-slate-400">${v.speed} km/h</td>
-      <td class="py-2.5 px-3 text-right">
-        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">${v.status}</span>
+      <td class="py-2.5 px-3 text-slate-600 dark:text-slate-400 whitespace-nowrap">${v.speed} km/h</td>
+      <td class="py-2.5 px-3 text-right whitespace-nowrap">
+        <span class="inline-flex items-center justify-center whitespace-nowrap px-3 py-1 rounded-full text-[10px] font-bold tracking-wide bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 shadow-xs">${v.status}</span>
       </td>
     </tr>
   `).join("");
@@ -1305,30 +1392,3 @@ if (document.readyState === 'loading') {
   attachTransitClickHandlers();
 }
 setInterval(attachTransitClickHandlers, 1500);
-
-
-function renderFleetTable(fleetList) {
-  const tbody = document.getElementById("fleetTableBody");
-  if (!tbody) return;
-  tbody.innerHTML = fleetList.map(v => `
-    <tr onclick="selectFleetBus('${v.vehicleId}')" title="Click to track ${v.vehicleId} live on map" class="cursor-pointer hover:bg-blue-50/70 dark*hover:bg-blue-950/40 transition group">
-      <td class="py-2.5 px-3 font-bold text-slate-900 dark:text-white whitespace-nowrap">
-        ${v.vehicleId}
-      </td>
-      <td class="py-2.5 px-3 text-blue-700 dark:text-blue-400 font-semibold font-sans text-xs whitespace-nowrap">${v.type}</td>
-      <td class="py-2.5 px-3 text-slate-700 dark:text-slate-300 font-sans text-xs font-medium whitespace-nowrap">${v.corridor}</td>
-      <td class="py-2.5 px-3 whitespace-nowrap">
-        <div class="flex items-center space-x-2">
-          <div class="w-16 bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden shrink-0">
-            <div class="h-full ${v.occupancyRate > 85 ? 'bg-rose-500' : 'bg-blue-600'}" style="width:${v.occupancyRate}%"></div>
-          </div>
-          <span class="text-[11px] text-slate-600 dark:text-slate-400">${v.occupancy}/${v.capacity}</span>
-        </div>
-      </td>
-      <td class="py-2.5 px-3 text-slate-600 dark:text-slate-400 whitespace-nowrap">${v.speed} km/h</td>
-      <td class="py-2.5 px-3 text-right whitespace-nowrap">
-        <span class="inline-flex items-center justify-center whitespace-nowrap px-3 py-1 rounded-full text-[10px] font-bold tracking-wide bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 shadow-xs">${v.status}</span>
-      </td>
-    </tr>
-  `).join("");
-}
