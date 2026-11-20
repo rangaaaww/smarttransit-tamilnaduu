@@ -113,21 +113,41 @@ async function fetchLiveWeatherAndSurge(lat = 13.0324, lng = 80.1818) {
 
 function renderWeatherBanner() {
   const w = liveWeatherState;
-  const distBadge = document.getElementById("distanceBadge");
-  if (!distBadge) return;
+  const isSurging = w.surgeMultiplier > 1.0;
 
-  let pill = document.getElementById("liveWeatherSurgePill");
-  if (!pill) {
-    pill = document.createElement("span");
-    pill.id = "liveWeatherSurgePill";
-    distBadge.parentElement.appendChild(pill);
+  // 1. Show prominently in the Top Header (right next to SOS)
+  const sosBtn = document.getElementById("headerSosBtn");
+  if (sosBtn && sosBtn.parentElement) {
+    let headerPill = document.getElementById("liveHeaderWeatherPill");
+    if (!headerPill) {
+      headerPill = document.createElement("div");
+      headerPill.id = "liveHeaderWeatherPill";
+      sosBtn.parentElement.insertBefore(headerPill, sosBtn);
+    }
+    headerPill.className = isSurging
+      ? "hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40"
+      : "hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/35";
+    headerPill.textContent = `${w.icon} ${w.tempC}°C ${w.condition} • ${w.surgeMultiplier}x`;
   }
 
-  const isSurging = w.surgeMultiplier > 1.0;
-  pill.className = isSurging
-    ? "ml-2 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-rose-500/15 text-rose-500 border border-rose-500/35"
-    : "ml-2 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-500 border border-emerald-500/35";
-  pill.textContent = `${w.icon} ${w.tempC}°C ${w.condition} • ${w.surgeLabel}`;
+  // 2. Also show a clean full-width strip inside the Fare Comparator card
+  const busPriceEl = document.getElementById("busPrice");
+  const fareCard = busPriceEl?.closest(".rounded-2xl")?.parentElement;
+  if (fareCard) {
+    let banner = document.getElementById("liveWeatherFareBanner");
+    if (!banner) {
+      banner = document.createElement("div");
+      banner.id = "liveWeatherFareBanner";
+      fareCard.prepend(banner);
+    }
+    banner.className = isSurging
+      ? "mb-2.5 px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-between bg-rose-500/15 text-rose-300 border border-rose-500/30"
+      : "mb-2.5 px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-between bg-emerald-500/10 text-emerald-400 border border-emerald-500/25";
+    banner.innerHTML = `
+      <span>${w.icon} Live Chennai Weather: <strong>${w.tempC}°C, ${w.condition}</strong></span>
+      <span class="font-mono text-[11px]">${w.surgeLabel}</span>
+    `;
+  }
 }
 
 // =============================================================================
