@@ -1,6 +1,6 @@
 // SmartTransit Tamil Nadu — Next-Gen Transit & Fare Engine
-// Features: OSRM Road-Snapped Routing, Realistic 22 km/h Bus Pace, First-Time Login,
-// Slide-Out App Drawer, SOS Safety Hub, Search History, Day/Night Theme Toggle
+// Features: OSRM Road-Snapped Routing, Realistic 22 km/h Bus Pace, Live Weather Surge Pricing,
+// First-Time Login, Slide-Out App Drawer, SOS Safety Hub, Search History, Day/Night Theme Toggle
 
 let map, googleStreetLayer, googleHybridLayer;
 let passedRoutePolyline = null, upcomingRoutePolyline = null;
@@ -9,7 +9,7 @@ let routeStopMarkers = [];
 let clickPickMode = "DEST";
 
 // =============================================================================
-// 1. REAL-WORLD ROAD-SNAPPED BUS ENGINE STATE
+// 1. REAL-WORLD ROAD-SNAPPED BUS ENGINE & LIVE WEATHER STATE
 // =============================================================================
 let activeJourneyStops = [];
 let roadCoords = [];          // Full OSRM road geometry [[lat, lng], ...]
@@ -26,8 +26,112 @@ const REAL_BUS_SPEED_KMH = 22; // Realistic Chennai MTC city bus pace (~6.1 m/s)
 let currentActiveBusNumber = "54";
 let currentLang = "EN";
 
+// Optional: Paste your Google Maps Platform Weather API key here.
+// Leave empty to automatically use free live Open-Meteo Chennai weather.
+const GOOGLE_WEATHER_API_KEY = "";
+
+let liveWeatherState = {
+  tempC: 30,
+  condition: "Clear",
+  icon: "☀️",
+  surgeMultiplier: 1.0,
+  surgeLabel: "Normal Fare (1.0x)",
+  source: "Live"
+};
+
 // =============================================================================
-// 2. COMPLETE CHENNAI BUS STANDS & TAMIL NADU HUBS
+// 2. LIVE WEATHER & DYNAMIC SURGE PRICING ENGINE
+// =============================================================================
+async function fetchLiveWeatherAndSurge(lat = 13.0324, lng = 80.1818) {
+  let tempC = 30;
+  let precipProb = 0;
+  let conditionText = "Clear";
+  let isStorm = false;
+  let isRain = false;
+  let isDrizzle = false;
+  let usedGoogle = false;
+
+  if (GOOGLE_WEATHER_API_KEY) {
+    try {
+      const url = `https://weather.googleapis.com/v1/currentConditions:lookup?key=${GOOGLE_WEATHER_API_KEY}&location.latitude=${lat}&location.longitude=${lng}`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        tempC = Math.round(data.temperature?.degrees ?? 30);
+        conditionText = data.weatherCondition?.description?.text || "Clear";
+        const type = (data.weatherCondition?.type || "").toUpperCase();
+        precipProb = data.precipitation?.probability?.percent ?? 0;
+
+        isStorm = type.includes("THUNDER") || type.includes("HEAVY_RAIN") || type.includes("STORM");
+        isRain = type.includes("RAIN") || type.includes("SHOWER") || precipProb >= 60;
+        isDrizzle = type.includes("DRIZZLE") || type.includes("CLOUD") || precipProb >= 30;
+        liveWeatherState.source = "Google Weather API";
+        usedGoogle = true;
+      }
+    } catch (e) {
+      console.warn("Google Weather API fallback:", e);
+    }
+  }
+
+  if (!usedGoogle) {
+    try {
+      const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,precipitation,weather_code`);
+      const data = await res.json();
+      const c = data.current;
+      tempC = Math.round(c.temperature_2m);
+      const code = c.weather_code;
+
+      if (code >= 95 || code === 65 || code === 82) {
+        isStorm = true; conditionText = "Heavy Rain / Storm";
+      } else if ((code >= 61 && code <= 67) || (code >= 80 && code <= 81)) {
+        isRain = true; conditionText = "Rain";
+      } else if (code >= 51 && code <= 57) {
+        isDrizzle = true; conditionText = "Light Drizzle";
+      } else if (code >= 1 && code <= 3) {
+        conditionText = "Partly Cloudy";
+      } else {
+        conditionText = "Clear";
+      }
+      liveWeatherState.source = "Open-Meteo Live";
+    } catch (e) {}
+  }
+
+  // Ride-hailing surges in rain; MTC Government bus ALWAYS stays at 1.0x
+  if (isStorm) {
+    liveWeatherState = { tempC, condition: conditionText, icon: "⛈️", surgeMultiplier: 1.65, surgeLabel: "Heavy Rain Surge (1.65x)", source: liveWeatherState.source };
+  } else if (isRain) {
+    liveWeatherState = { tempC, condition: conditionText, icon: "🌧️", surgeMultiplier: 1.35, surgeLabel: "Rain Surge (1.35x)", source: liveWeatherState.source };
+  } else if (isDrizzle) {
+    liveWeatherState = { tempC, condition: conditionText, icon: "🌦️", surgeMultiplier: 1.15, surgeLabel: "Light Rain Surge (1.15x)", source: liveWeatherState.source };
+  } else {
+    liveWeatherState = { tempC, condition: conditionText, icon: "☀️", surgeMultiplier: 1.0, surgeLabel: "Normal Fare (1.0x)", source: liveWeatherState.source };
+  }
+
+  renderWeatherBanner();
+  calculateAndDisplayFares(false);
+}
+
+function renderWeatherBanner() {
+  const w = liveWeatherState;
+  const distBadge = document.getElementById("distanceBadge");
+  if (!distBadge) return;
+
+  let pill = document.getElementById("liveWeatherSurgePill");
+  if (!pill) {
+    pill = document.createElement("span");
+    pill.id = "liveWeatherSurgePill";
+    distBadge.parentElement.appendChild(pill);
+  }
+
+  const isSurging = w.surgeMultiplier > 1.0;
+  pill.className = isSurging
+    ? "ml-2 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-rose-500/15 text-rose-500 border border-rose-500/35"
+    : "ml-2 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-500 border border-emerald-500/35";
+  pill.textContent = `${w.icon} ${w.tempC}°C ${w.condition} • ${w.surgeLabel}`;
+}
+
+// =============================================================================
+// 3. COMPLETE CHENNAI BUS STANDS & TAMIL NADU HUBS
 // =============================================================================
 const CHENNAI_BUS_STANDS = {
   "Ramapuram": { name: "Ramapuram (EEC Campus / MIOT)", lat: 13.0324, lng: 80.1818, zone: "West Chennai", terminus: false },
@@ -69,7 +173,7 @@ const TN_STATE_HUBS = {
 const ALL_LOCATIONS = { ...CHENNAI_BUS_STANDS, ...TN_STATE_HUBS };
 
 // =============================================================================
-// 3. OFFICIAL TAMIL NADU GOVERNMENT MTC STAGE FARE TABLE (G.O. Ms No. 42)
+// 4. OFFICIAL TAMIL NADU GOVERNMENT MTC STAGE FARE TABLE (G.O. Ms No. 42)
 // =============================================================================
 function getOfficialMtcFareByDistance(distanceKm, passType) {
   const stage = Math.max(1, Math.min(20, Math.ceil(distanceKm / 2.2)));
@@ -154,7 +258,7 @@ const mockFleet = [
 ];
 
 // =============================================================================
-// 4. INITIALIZATION & FIRST-TIME LOGIN CHECK
+// 5. INITIALIZATION & FIRST-TIME LOGIN CHECK
 // =============================================================================
 document.addEventListener("DOMContentLoaded", () => {
   removeFakeBusControls();
@@ -165,6 +269,7 @@ document.addEventListener("DOMContentLoaded", () => {
   checkFirstTimeUserOnboarding();
   updateHistoryBadgeCount();
   calculateAndDisplayFares(false);
+  fetchLiveWeatherAndSurge(13.0324, 80.1818);
 
   document.getElementById("searchBtn")?.addEventListener("click", () => calculateAndDisplayFares(true));
   document.getElementById("originSelect")?.addEventListener("change", () => calculateAndDisplayFares(true));
@@ -215,7 +320,7 @@ function removeFakeBusControls() {
 }
 
 // =============================================================================
-// 5. FIRST-TIME USER ONBOARDING & LOCALSTORAGE PROFILE
+// 6. FIRST-TIME USER ONBOARDING & LOCALSTORAGE PROFILE
 // =============================================================================
 function checkFirstTimeUserOnboarding() {
   const savedUser = localStorage.getItem("st_user_profile");
@@ -282,7 +387,7 @@ function applyUserProfileToUI(user) {
 }
 
 // =============================================================================
-// 6. DAYLIGHT / NIGHT THEME SWITCHER (WITH PERSISTENCE)
+// 7. DAYLIGHT / NIGHT THEME SWITCHER (WITH PERSISTENCE)
 // =============================================================================
 function initThemeState() {
   const savedTheme = localStorage.getItem("st_theme") || "light";
@@ -312,7 +417,7 @@ function setTheme(mode) {
 }
 
 // =============================================================================
-// 7. SLIDE-OUT MENU DRAWER & FEATURE MODALS (SOS, ALERTS, HISTORY, TICKETS)
+// 8. SLIDE-OUT MENU DRAWER & FEATURE MODALS (SOS, ALERTS, HISTORY, TICKETS)
 // =============================================================================
 function initDrawerAndModals() {
   const drawer = document.getElementById("sideDrawer");
@@ -553,7 +658,7 @@ function openFeatureModal(type) {
       { name: "Full Tamil Nadu State View", lat: 11.1271, lng: 78.6569, z: 7 }
     ];
     bodyEl.innerHTML = `<div class="space-y-2">` + cities.map(c => `
-      <button onclick="map.setView([${c.lat},${c.lng}],${c.z}); closeFeatureModal();" class="w-full p-3 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-blue-500 text-left font-bold text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-800 flex items-center justify-between">
+      <button onclick="map.setView([${c.lat},${c.lng}],${c.z}); fetchLiveWeatherAndSurge(${c.lat},${c.lng}); closeFeatureModal();" class="w-full p-3 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-blue-500 text-left font-bold text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-800 flex items-center justify-between">
         <span>${c.name}</span>
         <i class="fa-solid fa-arrow-right text-blue-600"></i>
       </button>
@@ -598,7 +703,7 @@ window.clearSearchHistory = function() {
 };
 
 // =============================================================================
-// 8. SAVE SEARCH HISTORY & FAVORITES (LOCALSTORAGE)
+// 9. SAVE SEARCH HISTORY & FAVORITES (LOCALSTORAGE)
 // =============================================================================
 function recordSearchToHistory(originKey, destKey, distance, busFareText) {
   let history = JSON.parse(localStorage.getItem("st_search_history") || "[]");
@@ -647,7 +752,7 @@ function saveCurrentRouteToFavorites() {
 }
 
 // =============================================================================
-// 9. GOOGLE MAPS + CLICK ANYWHERE TO PIN ORIGIN OR DROP
+// 10. GOOGLE MAPS + CLICK ANYWHERE TO PIN ORIGIN OR DROP
 // =============================================================================
 function setClickPickMode(mode) {
   clickPickMode = mode;
@@ -809,7 +914,7 @@ function switchLayer(type) {
 }
 
 // =============================================================================
-// 10. DISTANCE, ROUTE RESOLVER & FARE CALCULATOR
+// 11. DISTANCE, ROUTE RESOLVER & WEATHER-AWARE FARE CALCULATOR
 // =============================================================================
 function haversineKm(lat1, lon1, lat2, lon2) {
   const R = 6371;
@@ -913,12 +1018,13 @@ function calculateAndDisplayFares(shouldRecordHistory = false) {
   let primaryBusFare = 0;
   let busMinutes = 0;
 
+  // MTC Official Bus Fare (Fixed Govt Tariff — Zero Weather Surge!)
   if (!isIntercity) {
     const mtc = getOfficialMtcFareByDistance(distance, pass);
     primaryBusFare = mtc.ord;
     busMinutes = Math.round((distance / 23) * 60) + 4;
 
-    document.getElementById("busSubtext").textContent = `Stage ${mtc.stage} Official Tariff`;
+    document.getElementById("busSubtext").textContent = `Stage ${mtc.stage} Official Tariff • Zero Surge`;
     document.getElementById("busEta").textContent = `Drop in ~${busMinutes} mins • Official MTC Stage ${mtc.stage}`;
     document.getElementById("busPrice").textContent = primaryBusFare === 0 ? "₹ 0 (FREE)" : `₹ ${primaryBusFare}`;
     document.getElementById("busSlabDetail").textContent = `Ord: ₹${mtc.ord} | Exp: ₹${mtc.exp} | Dlx: ₹${mtc.dlx}`;
@@ -933,23 +1039,27 @@ function calculateAndDisplayFares(shouldRecordHistory = false) {
     busMinutes = Math.round((distance / 58) * 60);
     const hrs = (busMinutes / 60).toFixed(1);
 
-    document.getElementById("busSubtext").textContent = "TNSTC / SETC Official";
+    document.getElementById("busSubtext").textContent = "TNSTC / SETC Official • Zero Surge";
     document.getElementById("busEta").textContent = `Drop in ~${hrs} hrs • Highway Corridor`;
     document.getElementById("busPrice").textContent = `₹ ${expressFare}`;
     document.getElementById("busSlabDetail").textContent = `Exp: ₹${expressFare} | Ultra Dlx: ₹${ultraDeluxeFare}`;
   }
 
-  if (!isIntercity) {
-    const rapidoFare = Math.round(25 + (distance * 11.0));
-    const rapidoMins = Math.round((distance / 36) * 60) + 2;
-    document.getElementById("rapidoPrice").textContent = `₹ ${rapidoFare}`;
-    document.getElementById("rapidoEta").textContent = `Drop in ~${rapidoMins} mins • Beats traffic`;
-    document.getElementById("rapidoBadge").textContent = "Fastest Drop";
+  // Dynamic Weather Surge for Ride-Hailing (Rapido, Auto, Uber)
+  const surge = liveWeatherState.surgeMultiplier || 1.0;
+  const surgeTag = surge > 1.0 ? ` • ${liveWeatherState.icon} ${surge}x Weather Surge` : "";
 
-    const autoFare = Math.max(50, Math.round(50 + Math.max(0, distance - 1.8) * 15.0));
-    const autoMins = Math.round((distance / 28) * 60) + 3;
+  if (!isIntercity) {
+    const rapidoFare = Math.round((25 + (distance * 11.0)) * surge);
+    const rapidoMins = Math.round((distance / (surge > 1.2 ? 26 : 36)) * 60) + 2;
+    document.getElementById("rapidoPrice").textContent = `₹ ${rapidoFare}`;
+    document.getElementById("rapidoEta").textContent = `Drop in ~${rapidoMins} mins${surgeTag}`;
+    document.getElementById("rapidoBadge").textContent = surge > 1.0 ? `${surge}x Rain Surge` : "Fastest Drop";
+
+    const autoFare = Math.max(50, Math.round((50 + Math.max(0, distance - 1.8) * 15.0) * surge));
+    const autoMins = Math.round((distance / (surge > 1.2 ? 20 : 28)) * 60) + 3;
     document.getElementById("autoPrice").textContent = `₹ ${autoFare}`;
-    document.getElementById("autoEta").textContent = `Drop in ~${autoMins} mins • Up to 3 seats`;
+    document.getElementById("autoEta").textContent = `Drop in ~${autoMins} mins${surgeTag}`;
   } else {
     document.getElementById("rapidoPrice").textContent = "N/A";
     document.getElementById("rapidoEta").textContent = "City limits only (<45 km)";
@@ -960,22 +1070,22 @@ function calculateAndDisplayFares(shouldRecordHistory = false) {
 
   let uberFare = 0;
   if (!isIntercity) {
-    uberFare = Math.round(75 + (distance * 18.0));
-    const uberMins = Math.round((distance / 30) * 60) + 4;
+    uberFare = Math.round((75 + (distance * 18.0)) * surge);
+    const uberMins = Math.round((distance / (surge > 1.2 ? 22 : 30)) * 60) + 4;
     document.getElementById("uberPrice").textContent = `₹ ${uberFare}`;
-    document.getElementById("uberEta").textContent = `Drop in ~${uberMins} mins • 4-Seat AC Cab`;
+    document.getElementById("uberEta").textContent = `Drop in ~${uberMins} mins • 4-Seat AC Cab${surgeTag}`;
   } else {
-    uberFare = Math.round(450 + (distance * 14.5));
-    const hrs = ((distance / 65)).toFixed(1);
+    uberFare = Math.round((450 + (distance * 14.5)) * surge);
+    const hrs = (distance / 65).toFixed(1);
     document.getElementById("uberPrice").textContent = `₹ ${uberFare}`;
-    document.getElementById("uberEta").textContent = `Drop in ~${hrs} hrs • Intercity Outstation Cab`;
+    document.getElementById("uberEta").textContent = `Drop in ~${hrs} hrs • Intercity Outstation Cab${surgeTag}`;
   }
 
   const saved = Math.max(0, uberFare - primaryBusFare);
   const pct = Math.round((saved / uberFare) * 100);
   currentActiveBusNumber = routeDetails.buses[0]?.num || "54";
   document.getElementById("recommendationText").innerHTML =
-    `Board <strong>Bus #${currentActiveBusNumber}</strong> to pay just <strong>₹${primaryBusFare}</strong> (Official TN Govt tariff) and save <strong>₹${saved} (${pct}%)</strong> compared to an AC Cab.`;
+    `Board <strong>Bus #${currentActiveBusNumber}</strong> to pay just <strong>₹${primaryBusFare}</strong> (Official TN Govt tariff) and save <strong>₹${saved} (${pct}%)</strong> compared to an AC Cab${surge > 1.0 ? ` during ${liveWeatherState.condition}` : ""}.`;
 
   if (shouldRecordHistory) {
     recordSearchToHistory(origin, dest, distance, `₹${primaryBusFare}`);
@@ -985,7 +1095,7 @@ function calculateAndDisplayFares(shouldRecordHistory = false) {
 }
 
 // =============================================================================
-// 11. OSRM ROAD-SNAPPED ROUTE + REAL-LIFE BUS PACE (22 KM/H)
+// 12. OSRM ROAD-SNAPPED ROUTE + REAL-LIFE BUS PACE (22 KM/H)
 // =============================================================================
 async function setupSmoothBusCorridor(originKey, destKey, intermediateKeys) {
   const fetchId = ++routeFetchSeq;
@@ -999,7 +1109,6 @@ async function setupSmoothBusCorridor(originKey, destKey, intermediateKeys) {
     lng: ALL_LOCATIONS[k]?.lng || 80.1818
   }));
 
-  // Query OSRM for real road geometry (lng,lat;lng,lat)
   const coordStr = activeJourneyStops.map(s => `${s.lng},${s.lat}`).join(";");
   const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordStr}?overview=full&geometries=geojson`;
 
@@ -1007,7 +1116,7 @@ async function setupSmoothBusCorridor(originKey, destKey, intermediateKeys) {
   try {
     const res = await fetch(osrmUrl);
     const data = await res.json();
-    if (fetchId !== routeFetchSeq) return; // Ignore stale responses
+    if (fetchId !== routeFetchSeq) return;
     if (data.routes && data.routes.length > 0) {
       snappedPoints = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
     }
@@ -1026,7 +1135,6 @@ async function setupSmoothBusCorridor(originKey, destKey, intermediateKeys) {
     totalRoadMeters += d;
   }
 
-  // Map each bus stop to its cumulative distance along the OSRM road
   stopDistances = [];
   let searchStart = 0;
   let runningDist = 0;
@@ -1086,7 +1194,6 @@ function tickRealSpeedBus(now) {
   const dt = Math.min(0.2, (now - lastFrameTime) / 1000);
   lastFrameTime = now;
 
-  // Move bus at real-life city speed (22 km/h ≈ 6.11 meters/sec)
   const metersPerSec = (REAL_BUS_SPEED_KMH * 1000) / 3600;
   traveledMeters += metersPerSec * dt;
 
@@ -1094,7 +1201,7 @@ function tickRealSpeedBus(now) {
     traveledMeters = totalRoadMeters;
     updateBusPositionAtDistance(traveledMeters);
     drawStaticRouteStopsAndPins(activeJourneyStops.length - 1);
-    return; // Reached destination
+    return;
   }
 
   const currentPassedIdx = getPassedStopIndex(traveledMeters);
@@ -1108,7 +1215,6 @@ function tickRealSpeedBus(now) {
 }
 
 function updateBusPositionAtDistance(distMeters) {
-  // Find active road segment for distMeters
   let acc = 0;
   let segIdx = 0;
   let frac = 0;
@@ -1174,7 +1280,6 @@ function updateBusPositionAtDistance(distMeters) {
     if (lbl) lbl.textContent = `BUS #${currentActiveBusNumber}`;
   }
 
-  // Split OSRM road geometry into passed (dashed grey) & upcoming (solid blue)
   const passedLatLngs = roadCoords.slice(0, segIdx + 1);
   passedLatLngs.push([lat, lng]);
 
