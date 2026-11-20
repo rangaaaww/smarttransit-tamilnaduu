@@ -1,62 +1,56 @@
-# SmartTransit AI — Autonomous Urban Transit & Adaptive Fleet Dispatch Platform
-> **Google DeepMind | Google Cloud Startup Buildathon India 2026**  
-> *Developed by Team Tisso (Easwari Engineering College, Anna University)*
+# 🚌 SmartTransit Tamil Nadu — Next-Gen Transit & Fare Engine
 
-[![Cloud Run](https://img.shields.io/badge/Google_Cloud_Run-Deploys_Active-4285F4?logo=googlecloud&logoColor=white)](#)
-[![Gemini API](https://img.shields.io/badge/Google_Gemini-1.5_Flash_/_Live-8E75C2?logo=google&logoColor=white)](#)
-[![Architecture](https://img.shields.io/badge/Architecture-Clean_OOP_%26_Event--Driven-10B981)](#)
+**Live Demo:** [https://rangaaaww.github.io/smarttransit-tamilnaduu/](https://rangaaaww.github.io/smarttransit-tamilnaduu/)
+
+SmartTransit Tamil Nadu is a real-time multimodal transit, dynamic fare-comparison, and live **Gemini AI** commuter copilot built for Chennai and Tamil Nadu. It empowers daily commuters to beat dynamic ride-hailing surges (rain & night pricing) by comparing live **Rapido, Auto, and Uber** fares against official **zero-surge Tamil Nadu Government MTC & TNSTC bus tariffs**.
 
 ---
 
-## 🚀 Live Prototype & Deployment
-- **Live Cloud Run URL:** [https://smarttransit-ai-placeholder.a.run.app](https://smarttransit-ai-placeholder.a.run.app) *(replace with your deployed Cloud Run URL)*
-- **Core Technology Stack:** Google Cloud Run, Gemini 1.5 Flash API, Leaflet.js, OSRM Road Geometry, Open-Meteo Ingestion, Node.js / Java 21.
+## 🎯 Problem & Solution
+
+* **The Problem:** During Chennai monsoons or late-night hours (10 PM – 5 AM), ride-hailing apps surge by **1.25x to 1.65x+**, while commuters lack a single unified interface that shows live bus movement, official stage-wise government fares, and instant bilingual (English/Tamil) route guidance.
+* **The Solution:** SmartTransit TN combines **OSRM road-snapped live bus tracking**, **live weather & automatic night-fare modeling**, **official G.O. Ms No. 42 MTC stage tariffs**, and a **floating transparent Gemini AI Assistive Ball** that answers route, fare, and bus questions in **English or Tamil** (via text or voice) with zero API key setup required for end users.
 
 ---
 
-## 📌 The Real Problem We Solve
-Traditional public transport runs on **static master schedules** compiled months in advance. Under non-stationary traffic, adverse weather, or campus rush-hour surges, transit networks fail catastrophically:
-1. **Bus Bunching & Severe Gridlock:** Vehicles blindly enter congested corridors (e.g., Mount-Poonamallee Road at 2.1x congestion), stretching a 21-minute trip to 47.4 minutes and dropping schedule adherence to 68.5%.
-2. **Blind Fleet Dispatch:** Depots lack real-time passenger load factors. Standby shuttles sit idle while in-service buses exceed 90% capacity.
-3. **Fiscal Waste:** Trailing buses run empty, burning fuel and draining EV batteries while stations experience dangerous platform crowding.
+## ✨ Key Features
+
+* **🤖 Floating Transparent Gemini AI Copilot (`EN / தமிழ்` + Voice):** A draggable, frosted-glass Assistive Ball that works seamlessly on mobile and desktop. Powered by **Gemini 3.5 Flash-Lite / 3.8 Flash** via a secure serverless proxy, grounded in the user's live origin, destination, weather, night surge, and active bus data.
+* **🗺️ Road-Snapped Live Bus Tracking:** Uses **Leaflet.js + OSRM** driving geometry to animate buses along actual Chennai roads at realistic city pace (~22 km/h) with passed/upcoming stop timelines.
+* **🌦️ Live Weather & Automatic Night Surge Engine:** Pulls live Chennai weather via **Open-Meteo** (with optional Google Weather API support) and automatically applies **10 PM – 5 AM Night Fare rules** (1.5x Auto, 1.25x Rapido, 1.35x Uber) — plus a one-click **`🌙 Test Night`** preview toggle for judges.
+* **🏛️ Official TN Govt MTC Stage Fares:** Implements **G.O. Ms No. 42** Ordinary, Express, and Deluxe stage slabs, including **₹0 Women Free Travel** (Ordinary/Pink buses) and **50% Student Concession**.
+* **🛡️ Passenger Safety & SOS Hub:** One-tap access to TN Police (`100/112`), Ambulance (`108`), Women Helpline (`181`), and MTC Safety Cell (`149`), alongside NCMC digital pass view, favorites, and search history.
 
 ---
 
-## 💡 System Architecture & Core Innovation
-SmartTransit AI creates an active, closed-loop feedback mechanism connecting commuter demand directly to depot fleet dispatch:
-### 1. Congestion-Aware Dijkstra Graph Rerouter
-- Dynamically scales edge weights: `w(u,v) = (baseDistance / speedLimit) * congestionFactor`.
-- Evaluated on Chennai Metropolitan Corridors (Ramapuram ➔ Porur ➔ Vadapalani ➔ T. Nagar).
-- Diverts vehicles via Virugambakkam when Porur traffic spikes to 2.1x, **saving 26.1 minutes per trip**.
+## 🏗️ System Architecture
 
-### 2. Autonomous Observer Surge Dispatcher
-- Continuously monitors active vehicle load factors.
-- Automatically dispatches reserve feeder shuttles (`SS-309`) when occupancy exceeds **85.0%**, reducing commuter platform wait times by **42.8%** (17.8 min down to 8.3 min).
+```mermaid
+flowchart LR
+    U[Commuter / Judge Browser<br/>Mobile & Desktop] --> FE[GitHub Pages Frontend<br/>HTML / Tailwind / Leaflet.js / app.js]
+    FE -->|Route Geometry| OSRM[OSRM Driving API<br/>Road-Snapped Polyline]
+    FE -->|Live Weather| W[Open-Meteo / Google Weather API]
+    FE -->|POST / Live Context + Chat| CF[Cloudflare Worker Proxy<br/>backend/worker.js]
+    CF -->|Hidden Secret: GEMINI_API_KEY| G[Google Gemini API<br/>gemini-3.5-flash-lite / gemini-3.8-flash]
+```
 
-### 3. Gemini 1.5 Incident & Weather Grounding
-- Uses Gemini Function Calling to parse natural-language traffic advisories and weather alerts into deterministic numeric multipliers.
-
----
-
-## 📊 Quantified MVP Performance Benchmarks
-
-| Metric | SmartTransit AI | Legacy Static Baseline | Operational Impact |
-| :--- | :---: | :---: | :--- |
-| **Average Commuter Wait Time** | **8.3 min** | 17.8 min | **42.8% Wait-Time Reduction** |
-| **Corridor Duration (Ramapuram - T. Nagar)** | **21.3 min** | 47.4 min | **55.1% Faster Trip Duration** |
-| **Route Schedule Adherence** | **95.4%** | 68.5% | Eliminates Chronic Bus Bunching |
-| **Fleet Capacity Utilization** | **91.8%** | 64.2% | Reduces Deadhead Mileage & Energy Waste |
-| **Routing Algorithm Execution Speed** | **1.8 ms** | 42.0 ms | Real-Time Sub-Second Recalculation |
+### 🔒 API Key Security Architecture
+To prevent client-side credential leaks on a public GitHub Pages deployment, the Gemini API key is **never stored in frontend code**. All AI requests are routed through a **Cloudflare Worker (`backend/worker.js`)** where `GEMINI_API_KEY` is stored as an encrypted runtime secret, allowing unlimited judges and commuters to use the live AI immediately without entering personal keys.
 
 ---
 
-## 🛠️ Google Cloud & Google AI Tools Leveraged
-- **Google Cloud Run:** Hosts the containerized microservices with auto-scaling to handle rush-hour spikes.
-- **Google AI Studio / Gemini API:** Powering the multimodal route synthesizer and depot command agent.
-- **Google Cloud Pub/Sub & Cloud SQL:** Architected for telemetry streaming and ACID-compliant smart-card transactions.
+## 🛠️ Tech Stack
+
+* **AI & Backend Proxy:** Google Gemini API (`gemini-3.5-flash-lite`, `gemini-3.8-flash`), Cloudflare Workers
+* **Frontend & UI:** HTML5, Tailwind CSS, Glassmorphic Responsive UI, Web Speech API (Voice Input)
+* **Maps & Live Data:** Leaflet.js, Google Map Tiles, OSRM Routing Engine, Open-Meteo Weather API
 
 ---
 
-## 👥 Founding Team (Team Tisso)
-- **Ranganathan P** — AI/ML Architect & Graph Optimization Lead ([LinkedIn](https://www.linkedin.com/in/ranganath-61a783381/))
-- **Sadhan H M** — Backend Architecture & Cloud Infrastructure Lead ([LinkedIn](https://www.linkedin.com/in/sadhan-hm-382994340))
+## 👥 Team
+
+* **Sadhan H M** (`310625104302`) — Backend & Architecture
+* **Ranganathan P** (`310625104285`) — AI / ML & Systems
+* **Pravin B** (`310625104265`) — Front-End & UI/UX
+
+*Department of Computer Science and Engineering, Easwari Engineering College, Chennai.*
