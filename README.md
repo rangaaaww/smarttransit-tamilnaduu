@@ -51,6 +51,5 @@ To prevent client-side credential leaks on a public GitHub Pages deployment, the
 
 * **Sadhan H M** (`310625104302`) — Backend & Architecture
 * **Ranganathan P** (`310625104285`) — AI / ML & Systems
-* **Pravin B** (`310625104265`) — Front-End & UI/UX
 
 *Department of Computer Science and Engineering, Easwari Engineering College, Chennai.*
