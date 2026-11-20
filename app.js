@@ -1551,3 +1551,389 @@ if (document.readyState === 'loading') {
   attachTransitClickHandlers();
 }
 setInterval(attachTransitClickHandlers, 1500);
+// =============================================================================
+// 13. FLOATING TRANSPARENT ASSISTIVE BALL & LIVE GEMINI AI COPILOT (FREE TIER)
+// =============================================================================
+(function initSmartTransitAssistiveAI() {
+  const GEMINI_MODELS = ["gemini-3.5-flash-lite", "gemini-3.8-flash"];
+  let chatHistory = [];
+  let isPanelOpen = false;
+  let isSending = false;
+
+  function mountUI() {
+    if (document.getElementById("stAiAssistiveBall")) return;
+
+    // 1. Inject Glassy Antigravity Styles
+    const style = document.createElement("style");
+    style.textContent = `
+      #stAiAssistiveBall {
+        position: fixed;
+        right: 18px;
+        bottom: 84px;
+        width: 56px;
+        height: 56px;
+        border-radius: 9999px;
+        z-index: 9999;
+        cursor: grab;
+        touch-action: none;
+        user-select: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(circle at 30% 30%, rgba(96, 165, 250, 0.42), rgba(37, 99, 235, 0.22));
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        border: 1.5px solid rgba(191, 219, 254, 0.55);
+        box-shadow: 0 8px 28px rgba(37, 99, 235, 0.32), inset 0 1px 6px rgba(255, 255, 255, 0.45);
+        opacity: 0.85;
+        transition: opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+      }
+      #stAiAssistiveBall:hover, #stAiAssistiveBall.active {
+        opacity: 1;
+        transform: scale(1.06);
+        box-shadow: 0 10px 32px rgba(59, 130, 246, 0.5), inset 0 1px 8px rgba(255, 255, 255, 0.65);
+      }
+      #stAiAssistiveBall:active { cursor: grabbing; }
+      #stAiAssistiveBall .inner-ring {
+        width: 34px;
+        height: 34px;
+        border-radius: 9999px;
+        background: rgba(255, 255, 255, 0.22);
+        border: 1px solid rgba(255, 255, 255, 0.55);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #ffffff;
+        font-size: 16px;
+        pointer-events: none;
+      }
+
+      #stAiChatPanel {
+        position: fixed;
+        right: 16px;
+        bottom: 150px;
+        width: min(370px, calc(100vw - 24px));
+        height: min(500px, calc(100vh - 180px));
+        z-index: 9998;
+        display: none;
+        flex-direction: column;
+        border-radius: 24px;
+        overflow: hidden;
+        background: rgba(15, 23, 42, 0.72);
+        backdrop-filter: blur(22px);
+        -webkit-backdrop-filter: blur(22px);
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        box-shadow: 0 24px 60px rgba(2, 6, 23, 0.55);
+        color: #f8fafc;
+        font-family: system-ui, -apple-system, sans-serif;
+      }
+      #stAiChatPanel.open { display: flex; animation: stAiPop 0.2s ease-out; }
+      @keyframes stAiPop {
+        from { opacity: 0; transform: translateY(12px) scale(0.96); }
+        to   { opacity: 1; transform: translateY(0) scale(1); }
+      }
+      #stAiMessages::-webkit-scrollbar { width: 4px; }
+      #stAiMessages::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.35); border-radius: 999px; }
+    `;
+    document.head.appendChild(style);
+
+    // 2. Create Floating Assistive Ball
+    const ball = document.createElement("div");
+    ball.id = "stAiAssistiveBall";
+    ball.title = "Drag anywhere • Tap to talk to SmartTransit AI";
+    ball.innerHTML = `<div class="inner-ring">✨</div>`;
+    document.body.appendChild(ball);
+
+    // 3. Create Transparent Glassy Chat Panel
+    const panel = document.createElement("div");
+    panel.id = "stAiChatPanel";
+    panel.innerHTML = `
+      <div style="padding:12px 14px;display:flex;align-items:center;justify-content:space-between;background:rgba(30,41,59,0.55);border-bottom:1px solid rgba(148,163,184,0.2);">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="width:28px;height:28px;border-radius:999px;background:rgba(59,130,246,0.35);border:1px solid rgba(147,197,253,0.5);display:flex;align-items:center;justify-content:center;font-size:13px;">✨</span>
+          <div>
+            <div style="font-size:13px;font-weight:700;line-height:1.1;">SmartTransit AI</div>
+            <div style="font-size:10px;color:#93c5fd;">Gemini Live • EN / தமிழ்</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button id="stAiKeyToggleBtn" title="Set Gemini API Key" style="padding:4px 9px;border-radius:999px;font-size:10px;font-weight:700;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#e2e8f0;cursor:pointer;">🔑 Key</button>
+          <button id="stAiCloseBtn" title="Close" style="width:26px;height:26px;border-radius:999px;background:rgba(255,255,255,0.1);border:none;color:#e2e8f0;font-size:13px;cursor:pointer;">✕</button>
+        </div>
+      </div>
+
+      <div id="stAiKeyBox" style="display:none;padding:10px 12px;background:rgba(30,58,138,0.35);border-bottom:1px solid rgba(147,197,253,0.25);font-size:11px;">
+        <div style="margin-bottom:6px;color:#dbeafe;">Paste your free <strong>Google AI Studio</strong> Gemini API key (saved only on this device):</div>
+        <div style="display:flex;gap:6px;">
+          <input id="stAiKeyInput" type="password" placeholder="AIzaSy..." style="flex:1;padding:6px 10px;border-radius:10px;background:rgba(15,23,42,0.75);border:1px solid rgba(148,163,184,0.35);color:#fff;font-size:11px;outline:none;" />
+          <button id="stAiSaveKeyBtn" style="padding:6px 12px;border-radius:10px;background:#2563eb;color:#fff;font-weight:700;border:none;font-size:11px;cursor:pointer;">Save</button>
+        </div>
+      </div>
+
+      <div id="stAiMessages" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;font-size:12px;line-height:1.45;">
+        <div style="align-self:flex-start;max-width:88%;padding:9px 12px;border-radius:14px 14px 14px 4px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.12);">
+          Vanakkam! Ask me anything about your current route, live bus fares, weather surge, or Tamil Nadu buses. Tap 🎙️ to talk!
+        </div>
+      </div>
+
+      <div style="padding:6px 12px;display:flex;gap:6px;overflow-x:auto;border-top:1px solid rgba(148,163,184,0.15);">
+        <button class="st-ai-chip" data-q="Which is the cheapest and best option for my current route right now?" style="white-space:nowrap;padding:4px 9px;border-radius:999px;font-size:10px;background:rgba(59,130,246,0.22);border:1px solid rgba(147,197,253,0.3);color:#dbeafe;cursor:pointer;">Best option now?</button>
+        <button class="st-ai-chip" data-q="Explain how weather or night fare is affecting my route." style="white-space:nowrap;padding:4px 9px;border-radius:999px;font-size:10px;background:rgba(59,130,246,0.22);border:1px solid rgba(147,197,253,0.3);color:#dbeafe;cursor:pointer;">Weather & Night?</button>
+        <button class="st-ai-chip" data-q="என் தற்போதைய வழித்தடத்திற்கு சிறந்த பஸ் மற்றும் கட்டணத்தை தமிழில் சொல்லுங்கள்." style="white-space:nowrap;padding:4px 9px;border-radius:999px;font-size:10px;background:rgba(59,130,246,0.22);border:1px solid rgba(147,197,253,0.3);color:#dbeafe;cursor:pointer;">தமிழில் சொல்</button>
+      </div>
+
+      <form id="stAiForm" style="padding:10px;display:flex;align-items:center;gap:6px;background:rgba(15,23,42,0.55);border-top:1px solid rgba(148,163,184,0.2);">
+        <button type="button" id="stAiMicBtn" title="Voice Input" style="width:34px;height:34px;border-radius:999px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;font-size:14px;cursor:pointer;flex-shrink:0;">🎙️</button>
+        <input id="stAiInput" type="text" placeholder="Ask about buses, fares, routes..." autocomplete="off" style="flex:1;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;font-size:12px;outline:none;" />
+        <button type="submit" id="stAiSendBtn" style="padding:8px 13px;border-radius:999px;background:#2563eb;color:#fff;font-weight:700;font-size:12px;border:none;cursor:pointer;flex-shrink:0;">Send</button>
+      </form>
+    `;
+    document.body.appendChild(panel);
+
+    setupDragging(ball, panel);
+    setupChatEvents(ball, panel);
+  }
+
+  // Smooth Mouse + Touch Assistive-Ball Dragging
+  function setupDragging(ball, panel) {
+    let dragging = false;
+    let moved = false;
+    let startX = 0, startY = 0, origLeft = 0, origTop = 0;
+
+    ball.addEventListener("pointerdown", (e) => {
+      dragging = true;
+      moved = false;
+      const rect = ball.getBoundingClientRect();
+      startX = e.clientX;
+      startY = e.clientY;
+      origLeft = rect.left;
+      origTop = rect.top;
+      ball.setPointerCapture(e.pointerId);
+    });
+
+    ball.addEventListener("pointermove", (e) => {
+      if (!dragging) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      if (Math.hypot(dx, dy) > 6) moved = true;
+      if (!moved) return;
+
+      const maxLeft = window.innerWidth - ball.offsetWidth - 8;
+      const maxTop = window.innerHeight - ball.offsetHeight - 8;
+      const nextLeft = Math.max(8, Math.min(maxLeft, origLeft + dx));
+      const nextTop = Math.max(8, Math.min(maxTop, origTop + dy));
+
+      ball.style.left = `${nextLeft}px`;
+      ball.style.top = `${nextTop}px`;
+      ball.style.right = "auto";
+      ball.style.bottom = "auto";
+    });
+
+    ball.addEventListener("pointerup", (e) => {
+      if (!dragging) return;
+      dragging = false;
+      try { ball.releasePointerCapture(e.pointerId); } catch {}
+      if (!moved) togglePanel(ball, panel);
+    });
+
+    window.addEventListener("resize", () => {
+      if (ball.style.left) {
+        const maxLeft = window.innerWidth - ball.offsetWidth - 8;
+        const maxTop = window.innerHeight - ball.offsetHeight - 8;
+        ball.style.left = `${Math.max(8, Math.min(maxLeft, parseFloat(ball.style.left)))}px`;
+        ball.style.top = `${Math.max(8, Math.min(maxTop, parseFloat(ball.style.top)))}px`;
+      }
+    });
+  }
+
+  function togglePanel(ball, panel) {
+    isPanelOpen = !isPanelOpen;
+    panel.classList.toggle("open", isPanelOpen);
+    ball.classList.toggle("active", isPanelOpen);
+
+    // Show API key prompt automatically if not set yet
+    const keyBox = document.getElementById("stAiKeyBox");
+    if (isPanelOpen && !localStorage.getItem("st_gemini_api_key")) {
+      keyBox.style.display = "block";
+    }
+    if (isPanelOpen) {
+      setTimeout(() => document.getElementById("stAiInput")?.focus(), 150);
+    }
+  }
+
+  function setupChatEvents(ball, panel) {
+    const keyBox = document.getElementById("stAiKeyBox");
+    const keyInput = document.getElementById("stAiKeyInput");
+
+    document.getElementById("stAiCloseBtn").onclick = () => togglePanel(ball, panel);
+    document.getElementById("stAiKeyToggleBtn").onclick = () => {
+      keyBox.style.display = keyBox.style.display === "none" ? "block" : "none";
+      keyInput.value = localStorage.getItem("st_gemini_api_key") || "";
+    };
+
+    document.getElementById("stAiSaveKeyBtn").onclick = () => {
+      const val = keyInput.value.trim();
+      if (!val) {
+        localStorage.removeItem("st_gemini_api_key");
+        appendMessage("bot", "API key cleared.");
+      } else {
+        localStorage.setItem("st_gemini_api_key", val);
+        keyBox.style.display = "none";
+        appendMessage("bot", "✅ Gemini API key saved locally! Ask me anything about your trip.");
+      }
+    };
+
+    document.querySelectorAll(".st-ai-chip").forEach(chip => {
+      chip.onclick = () => sendUserPrompt(chip.getAttribute("data-q"));
+    });
+
+    document.getElementById("stAiForm").onsubmit = (e) => {
+      e.preventDefault();
+      const input = document.getElementById("stAiInput");
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = "";
+      sendUserPrompt(text);
+    };
+
+    // Voice Input (Web Speech API)
+    const micBtn = document.getElementById("stAiMicBtn");
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRec) {
+      micBtn.style.opacity = "0.4";
+      micBtn.title = "Voice input not supported in this browser";
+    } else {
+      const rec = new SpeechRec();
+      rec.lang = "en-IN";
+      rec.interimResults = false;
+      let listening = false;
+
+      micBtn.onclick = () => {
+        if (listening) { rec.stop(); return; }
+        listening = true;
+        micBtn.style.background = "rgba(225, 29, 72, 0.7)";
+        micBtn.textContent = "⏹";
+        rec.start();
+      };
+      rec.onresult = (e) => {
+        const transcript = e.results[0][0].transcript;
+        document.getElementById("stAiInput").value = transcript;
+        sendUserPrompt(transcript);
+      };
+      rec.onend = () => {
+        listening = false;
+        micBtn.style.background = "rgba(255,255,255,0.1)";
+        micBtn.textContent = "🎙️";
+      };
+      rec.onerror = () => {
+        listening = false;
+        micBtn.style.background = "rgba(255,255,255,0.1)";
+        micBtn.textContent = "🎙️";
+      };
+    }
+  }
+
+  function formatReply(text) {
+    return text
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\n/g, "<br>");
+  }
+
+  function appendMessage(role, text, isTemp = false) {
+    const box = document.getElementById("stAiMessages");
+    const div = document.createElement("div");
+    if (isTemp) div.id = "stAiTypingIndicator";
+    div.style.cssText = role === "user"
+      ? "align-self:flex-end;max-width:86%;padding:8px 12px;border-radius:14px 14px 4px 14px;background:rgba(37,99,235,0.85);color:#fff;"
+      : "align-self:flex-start;max-width:88%;padding:9px 12px;border-radius:14px 14px 14px 4px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.12);color:#f1f5f9;";
+    div.innerHTML = formatReply(text);
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function getLiveTransitContext() {
+    const oEl = document.getElementById("originSelect");
+    const dEl = document.getElementById("destSelect");
+    const origin = oEl?.options[oEl.selectedIndex]?.text || "Ramapuram";
+    const dest = dEl?.options[dEl.selectedIndex]?.text || "T. Nagar";
+    const dist = document.getElementById("distanceBadge")?.textContent || "8 km";
+    const busPrice = document.getElementById("busPrice")?.textContent || "₹10";
+    const rapidoPrice = document.getElementById("rapidoPrice")?.textContent || "N/A";
+    const autoPrice = document.getElementById("autoPrice")?.textContent || "N/A";
+    const uberPrice = document.getElementById("uberPrice")?.textContent || "N/A";
+    const weather = typeof liveWeatherState !== "undefined"
+      ? `${liveWeatherState.tempC}°C ${liveWeatherState.condition} (Surge ${liveWeatherState.surgeMultiplier}x)`
+      : "Clear";
+    const busNo = typeof currentActiveBusNumber !== "undefined" ? currentActiveBusNumber : "54";
+    const isNight = typeof getNightFareState === "function" ? getNightFareState().isNight : false;
+
+    return `You are SmartTransit TN AI, a concise, helpful Chennai & Tamil Nadu transit copilot. Reply in the user's language (English or Tamil). Keep answers under 4 short sentences.
+LIVE APP STATE:
+- Route: ${origin} -> ${dest} (${dist})
+- Active Live Bus: Bus #${busNo}
+- Official MTC/TNSTC Bus Fare: ${busPrice} (Zero Surge)
+- Rapido Bike: ${rapidoPrice} | Auto: ${autoPrice} | Uber AC Cab: ${uberPrice}
+- Live Weather: ${weather} | Night Fare (10 PM–5 AM): ${isNight ? "ACTIVE (Auto 1.5x, Rapido 1.25x, Uber 1.35x)" : "Inactive"}`;
+  }
+
+  async function sendUserPrompt(userText) {
+    if (isSending) return;
+    const apiKey = localStorage.getItem("st_gemini_api_key");
+    if (!apiKey) {
+      document.getElementById("stAiKeyBox").style.display = "block";
+      appendMessage("bot", "Please paste your free **Google AI Studio** API key above first (click 🔑 Key).");
+      return;
+    }
+
+    appendMessage("user", userText);
+    chatHistory.push({ role: "user", parts: [{ text: userText }] });
+    if (chatHistory.length > 10) chatHistory = chatHistory.slice(-10);
+
+    isSending = true;
+    appendMessage("bot", "Thinking...", true);
+
+    let replyText = null;
+    let lastErr = "";
+
+    for (const model of GEMINI_MODELS) {
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey
+          },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: getLiveTransitContext() }] },
+            contents: chatHistory
+          })
+        });
+        const data = await res.json();
+        if (res.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
+          replyText = data.candidates[0].content.parts[0].text;
+          break;
+        }
+        lastErr = data.error?.message || `HTTP ${res.status}`;
+      } catch (err) {
+        lastErr = err.message;
+      }
+    }
+
+    document.getElementById("stAiTypingIndicator")?.remove();
+
+    if (replyText) {
+      chatHistory.push({ role: "model", parts: [{ text: replyText }] });
+      appendMessage("bot", replyText);
+    } else {
+      appendMessage("bot", `⚠️ Could not reach Gemini (${lastErr}). Check your API key in 🔑 Key.`);
+    }
+    isSending = false;
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", mountUI);
+  } else {
+    mountUI();
+  }
+})();
